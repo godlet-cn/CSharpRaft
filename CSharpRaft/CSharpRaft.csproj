@@ -11,6 +11,7 @@
     <AssemblyName>CSharpRaft</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -30,8 +31,13 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="protobuf-net, Version=2.0.0.622, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>bin\Debug\protobuf-net.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -40,26 +46,46 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AppendEntriesRequest.cs" />
-    <Compile Include="AppendEntriesResponse.cs" />
+    <Compile Include="AppendEntries.cs" />
     <Compile Include="Command.cs" />
     <Compile Include="Commands.cs" />
     <Compile Include="Config.cs" />
+    <Compile Include="Constants.cs" />
     <Compile Include="Context.cs" />
-    <Compile Include="EventListener.cs" />
+    <Compile Include="Crc32.cs" />
+    <Compile Include="DebugTrace.cs" />
     <Compile Include="IServer.cs" />
+    <Compile Include="Log.cs" />
     <Compile Include="LogEntry.cs" />
     <Compile Include="Peer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="protobuf\append_entries_request.cs" />
+    <Compile Include="protobuf\append_entries_responses.cs" />
+    <Compile Include="protobuf\log_entry.cs" />
+    <Compile Include="protobuf\request_vote_request.cs" />
+    <Compile Include="protobuf\request_vote_responses.cs" />
+    <Compile Include="protobuf\snapshot_recovery_request.cs" />
+    <Compile Include="protobuf\snapshot_recovery_response.cs" />
+    <Compile Include="protobuf\snapshot_request.cs" />
+    <Compile Include="protobuf\snapshot_response.cs" />
+    <Compile Include="RaftEventArgs.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="RequestVoteRequest.cs" />
     <Compile Include="ServerState.cs" />
-    <Compile Include="SnapshotRecoveryRequest.cs" />
-    <Compile Include="SnapshotRecoveryResponse.cs" />
-    <Compile Include="SnapshotRequest.cs" />
-    <Compile Include="SnapshotResponse.cs" />
+    <Compile Include="Snapshot.cs" />
     <Compile Include="StateMachine.cs" />
     <Compile Include="Transporter.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="protobuf\append_entries_request.proto" />
+    <None Include="protobuf\append_entries_responses.proto" />
+    <None Include="protobuf\log_entry.proto" />
+    <None Include="protobuf\request_vote_request.proto" />
+    <None Include="protobuf\request_vote_responses.proto" />
+    <None Include="protobuf\snapshot_recovery_request.proto" />
+    <None Include="protobuf\snapshot_recovery_response.proto" />
+    <None Include="protobuf\snapshot_request.proto" />
+    <None Include="protobuf\snapshot_response.proto" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

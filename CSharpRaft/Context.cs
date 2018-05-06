@@ -13,24 +13,24 @@ namespace CSharpRaft
     {
         Server Server();
 
-        ulong CurrentTerm();
+        int CurrentTerm();
 
-        ulong CurrentIndex();
+        int CurrentIndex();
 
-        ulong CommitIndex();
+        int CommitIndex();
 
     }
 
     // context is the concrete implementation of Context.
     public class context: Context
     {
-        Server server;
+        public Server server;
 
-        ulong currentIndex;
+        public int currentIndex;
 
-        ulong currentTerm;
+        public int currentTerm;
 
-        ulong commitIndex;
+        public int commitIndex;
 
         /// <summary>
         /// returns a reference to the server.
@@ -45,7 +45,7 @@ namespace CSharpRaft
         /// returns current term the server is in.
         /// </summary>
         /// <returns></returns>
-        public ulong CurrentTerm()
+        public int CurrentTerm()
         {
             return this.currentTerm;
         }
@@ -54,7 +54,7 @@ namespace CSharpRaft
         /// returns current index the server is at.
         /// </summary>
         /// <returns></returns>
-        public ulong CurrentIndex()
+        public int CurrentIndex()
         {
             return this.currentIndex;
         }
@@ -63,7 +63,7 @@ namespace CSharpRaft
         /// returns last commit index the server is at.
         /// </summary>
         /// <returns></returns>
-        public ulong CommitIndex()
+        public int CommitIndex()
         {
             return this.commitIndex;
         }

@@ -8,8 +8,8 @@ namespace CSharpRaft
 {
     public class Config
     {
-        public ulong CommitIndex;
+        public int CommitIndex { get; set; }
 
-        public Peer[] Peers;
+        public Peer[] Peers { get; set; }
     }
 }

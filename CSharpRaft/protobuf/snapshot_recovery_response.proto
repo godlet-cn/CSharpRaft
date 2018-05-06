@@ -1,0 +1,7 @@
+package protobuf;
+
+message SnapshotRecoveryResponse {
+	required uint64 Term=1;     
+	required bool Success=2;
+	required uint64 CommitIndex=3;
+}

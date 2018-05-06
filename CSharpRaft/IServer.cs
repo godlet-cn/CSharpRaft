@@ -16,17 +16,17 @@ namespace CSharpRaft
 
         string Leader();
 
-        string State();
+        ServerState State();
 
-        string Path();
+        string GetPath();
 
         string LogPath();
 
-        string SnapshotPath(UInt64 lastIndex, UInt64 lastTerm);
+        string SnapshotPath(int lastIndex, int lastTerm);
 
-        UInt64 Term();
+        int Term();
 
-        UInt64 CommitIndex();
+        int CommitIndex();
 
         string VotedFor();
 
@@ -36,19 +36,19 @@ namespace CSharpRaft
 
         bool IsLogEmpty();
 
-        LogEntry[] LogEntries();
+        List<LogEntry> LogEntries();
 
         string LastCommandName();
 
         string GetState();
 
-        TimeSpan ElectionTimeout();
+        int ElectionTimeout();
 
-        void SetElectionTimeout(TimeSpan duration);
+        void SetElectionTimeout(int duration);
 
-        TimeSpan HeartbeatInterval();
+        int HeartbeatInterval();
 
-        void SetHeartbeatInterval(TimeSpan duration);
+        void SetHeartbeatInterval(int duration);
 
         Transporter Transporter();
 
@@ -62,15 +62,15 @@ namespace CSharpRaft
 
         SnapshotRecoveryResponse SnapshotRecoveryRequest(SnapshotRecoveryRequest req);
 
-        bool AddPeer(string name, string connectiongString);
+        void AddPeer(string name, string connectiongString);
 
-        bool RemovePeer(string name);
+        void RemovePeer(string name);
 
         Dictionary<string, Peer> Peers();
 
-        bool Init();
+        void Init();
 
-        bool Start();
+        void Start();
 
         void Stop();
 
@@ -78,11 +78,9 @@ namespace CSharpRaft
 
         object Do(Command command);
 
-        bool TakeSnapshot();
+        void TakeSnapshot();
 
-        bool LoadSnapshot();
-
-        void AddEventListener(string id, EventListener listenner);
+        void LoadSnapshot();
 
         void FlushCommitIndex();
     }

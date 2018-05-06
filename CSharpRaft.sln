@@ -1,9 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26228.9
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSharpRaft", "CSharpRaft\CSharpRaft.csproj", "{43F546CB-EE0F-4D99-A7E5-50F00718EC04}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSharpRaft.Test", "CSharpRaft.Test\CSharpRaft.Test.csproj", "{677E238B-AF56-4D37-81F9-C2326AB98D57}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSharpRaft.Samples", "CSharpRaft.Samples\CSharpRaft.Samples.csproj", "{3C4C2942-DB68-4FDC-9801-3692F8A6F225}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +19,14 @@ Global
 		{43F546CB-EE0F-4D99-A7E5-50F00718EC04}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{43F546CB-EE0F-4D99-A7E5-50F00718EC04}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{43F546CB-EE0F-4D99-A7E5-50F00718EC04}.Release|Any CPU.Build.0 = Release|Any CPU
+		{677E238B-AF56-4D37-81F9-C2326AB98D57}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{677E238B-AF56-4D37-81F9-C2326AB98D57}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{677E238B-AF56-4D37-81F9-C2326AB98D57}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{677E238B-AF56-4D37-81F9-C2326AB98D57}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3C4C2942-DB68-4FDC-9801-3692F8A6F225}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C4C2942-DB68-4FDC-9801-3692F8A6F225}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C4C2942-DB68-4FDC-9801-3692F8A6F225}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C4C2942-DB68-4FDC-9801-3692F8A6F225}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

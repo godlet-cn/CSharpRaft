@@ -1,22 +1,22 @@
-﻿using System.IO;
+﻿using ProtoBuf;
+using System.IO;
 
 namespace CSharpRaft
 {
-
     // The request sent to a server to vote for a candidate to become a leader.
     public class RequestVoteRequest
     {
         public Peer peer;
 
-        public ulong Term;
+        public int Term;
 
-        public ulong LastLogIndex;
+        public int LastLogIndex;
 
-        public ulong LastLogTerm;
+        public int LastLogTerm;
 
         public string CandidateName;
 
-        public RequestVoteRequest(ulong term, string candidateName, ulong lastLogIndex, ulong lastLogTerm)
+        public RequestVoteRequest(int term, string candidateName, int lastLogIndex, int lastLogTerm)
         {
             this.Term = term;
             this.CandidateName = candidateName;
@@ -26,18 +26,27 @@ namespace CSharpRaft
 
         // Encodes the RequestVoteRequest to a buffer. Returns the number of bytes
         // written and any error that may have occurred.
-        public void Encode(BinaryWriter w)
+        public void Encode(Stream stream)
         {
-            string p = "";
-
-            w.Write(p);
+            Serializer.Serialize<protobuf.RequestVoteRequest>(stream, new protobuf.RequestVoteRequest()
+            {
+                Term = (uint)this.Term,
+                LastLogTerm = (uint)LastLogTerm,
+                CandidateName = CandidateName,
+                LastLogIndex = (uint)LastLogIndex
+            });
         }
 
         // Decodes the RequestVoteRequest from a buffer. Returns the number of bytes read and
         // any error that occurs.
-        public RequestVoteRequest Decode(BinaryReader r)
+        public void Decode(Stream stream)
         {
-            return null;
+            protobuf.RequestVoteRequest pb = Serializer.Deserialize<protobuf.RequestVoteRequest>(stream);
+
+            this.Term = (int)pb.Term;
+            this.LastLogTerm = (int)pb.LastLogTerm;
+            this.LastLogIndex = (int)pb.LastLogIndex;
+            this.CandidateName = pb.CandidateName;
         }
     }
 
@@ -47,13 +56,13 @@ namespace CSharpRaft
 
         public Peer peer;
 
-        public ulong Term;
+        public int Term;
 
         public bool VoteGranted;
 
 
         // Creates a new RequestVote response.
-        public RequestVoteResponse(ulong term, bool voteGranted)
+        public RequestVoteResponse(int term, bool voteGranted)
         {
             this.Term = term;
             this.VoteGranted = voteGranted;
@@ -62,18 +71,23 @@ namespace CSharpRaft
 
         // Encodes the RequestVoteResponse to a buffer. Returns the number of bytes
         // written and any error that may have occurred.
-        public void Encode(BinaryWriter w)
+        public void Encode(Stream stream)
         {
-            string p = "";
-
-            w.Write(p);
+            Serializer.Serialize<protobuf.RequestVoteResponse>(stream, new protobuf.RequestVoteResponse()
+            {
+                Term = (uint)this.Term,
+                VoteGranted= VoteGranted
+            });
         }
 
         // Decodes the RequestVoteResponse from a buffer. Returns the number of bytes read and
         // any error that occurs.
-        public RequestVoteResponse Decode(BinaryReader r)
+        public void Decode(Stream stream)
         {
-            return null;
+            protobuf.RequestVoteResponse pb = Serializer.Deserialize<protobuf.RequestVoteResponse>(stream);
+
+            this.Term = (int)pb.Term;
+            this.VoteGranted = pb.VoteGranted;
         }
     }
 

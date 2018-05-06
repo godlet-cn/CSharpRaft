@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace CSharpRaft
 {
@@ -25,8 +26,8 @@ namespace CSharpRaft
 
     public interface CommandEncoder
     {
-        bool Encode(BinaryWriter writer);
-        bool Decode(BinaryReader reader);
+        bool Encode(Stream writer);
+        bool Decode(Stream reader);
     }
 
 
@@ -39,8 +40,8 @@ namespace CSharpRaft
     // Join command
     public class DefaultJoinCommand: JoinCommand
     {
-        string Name;
-        string ConnectionString;
+        public string Name;
+        public string ConnectionString;
         
         // The name of the Join command in the log
         public string CommandName()
@@ -51,7 +52,7 @@ namespace CSharpRaft
         public object Apply(Server server)
         {
             server.AddPeer(this.Name, this.ConnectionString);
-            return System.Text.UTF8Encoding.UTF8.GetBytes("join");
+            return UTF8Encoding.UTF8.GetBytes("join");
         }
 
         public string NodeName()
@@ -69,7 +70,7 @@ namespace CSharpRaft
     // Leave command
     public class DefaultLeaveCommand: LeaveCommand
     {
-        string Name;
+        public string Name;
 
 
         // The name of the Leave command in the log
@@ -81,7 +82,7 @@ namespace CSharpRaft
         public object Apply(Server server)
         {
             server.RemovePeer(this.Name);
-            return System.Text.UTF8Encoding.UTF8.GetBytes("leave");
+            return UTF8Encoding.UTF8.GetBytes("leave");
         }
 
         public string NodeName()
@@ -91,7 +92,7 @@ namespace CSharpRaft
     }
 
     // NOP command
-    public class NOPCommand
+    public class NOPCommand: Command
     {
 
         // The name of the NOP command in the log
