@@ -10,6 +10,6 @@ namespace CSharpRaft
     {
         public int CommitIndex { get; set; }
 
-        public Peer[] Peers { get; set; }
+        public List<Peer> Peers { get; set; }
     }
 }

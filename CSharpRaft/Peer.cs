@@ -6,15 +6,19 @@ namespace CSharpRaft
     // A peer is a reference to another server involved in the consensus protocol.
     public class Peer
     {
-        internal Server server;
+        public Server server;
+
         public string Name;
+
         public string ConnectionString;
 
-        internal int prevLogIndex;
+        public int prevLogIndex;
 
-        internal bool stopChan;
-        internal int heartbeatInterval;
-        internal DateTime lastActivity;
+        public bool stopChan;
+
+        public int heartbeatInterval;
+
+        public DateTime lastActivity;
 
         internal object mutex;
 
@@ -126,11 +130,9 @@ namespace CSharpRaft
             //this.stopChan = make(chan bool);
 
             //c:= make(chan bool);
-
-
-            //this.setLastActivity(DateTime.Now);
-
-
+            
+            this.setLastActivity(DateTime.Now);
+            
             //this.server.routineGroup.Add(1)
 
             //go func()
@@ -146,11 +148,9 @@ namespace CSharpRaft
         // Stops the peer heartbeat.
         public void stopHeartbeat(bool flush)
         {
-            //   this.setLastActivity(time.Time{ })
-
-            //this.stopChan < -flush
+            this.setLastActivity(DateTime.Now);
+            this.stopChan = flush;
         }
-
 
         //--------------------------------------
         // Heartbeat
@@ -237,157 +237,151 @@ namespace CSharpRaft
         // Sends an AppendEntries request to the peer through the transport.
         public void sendAppendEntriesRequest(AppendEntriesRequest req)
         {
-            //        DebugTrace.Trace("peer.append.send: %s->%s [prevLog:%d length: %d]\n",
-            //            this.server.Name(), this.Name, req.PrevLogIndex, len(req.Entries));
+            DebugTrace.Trace("peer.append.send: {0}->{1} [prevLog:{2} length: {3}]\n",
+                this.server.Name(), this.Name, req.PrevLogIndex, req.Entries.Count);
 
 
-            //resp:= this.server.Transporter().SendAppendEntriesRequest(this.server, p, req)
+            var resp = this.server.Transporter().SendAppendEntriesRequest(this.server, this, req);
 
-            //if resp == null {
-            //    this.server.DispatchEvent(newEvent(HeartbeatIntervalEventType, p, null))
+            if (resp == null)
+            {
+                this.server.DispatchHeartbeatIntervalEvent(new RaftEventArgs(this, null));
+                DebugTrace.Debug("peer.append.timeout: ", this.server.Name(), "->", this.Name);
 
-            //    DebugTrace.Debug("peer.append.timeout: ", this.server.Name(), "->", this.Name)
-
-            //    return
-
-            //}
-            //DebugTrace.TraceLine("peer.append.resp: ", this.server.Name(), "<-", this.Name)
-
-
-            //this.setLastActivity(time.Now())
-            //// If successful then update the previous log index.
-            //this.Lock()
-
-            //if resp.Success() {
-            //    if len(req.Entries) > 0 {
-            //        this.prevLogIndex = req.Entries[len(req.Entries) - 1].GetIndex()
-
-            //        // if peer append a log entry from the current term
-            //        // we set append to true
-            //        if req.Entries[len(req.Entries) - 1].GetTerm() == this.server.currentTerm {
-            //            resp.append = true
-
-            //        }
-            //    }
-            //    DebugTrace.TraceLine("peer.append.resp.success: ", this.Name, "; idx =", this.prevLogIndex)
-            //    // If it was unsuccessful then decrement the previous log index and
-            //    // we'll try again next time.
-            //}
-            //else
-            //{
-            //    if resp.Term() > this.server.Term() {
-            //        // this happens when there is a new leader comes up that this *leader* has not
-            //        // known yet.
-            //        // this server can know until the new leader send a ae with higher term
-            //        // or this server finish processing this response.
-            //        DebugTrace.Debug("peer.append.resp.not.update: new.leader.found")
-
-            //    }
-            //    else if resp.Term() == req.Term && resp.CommitIndex() >= this.prevLogIndex {
-            //        // we may miss a response from peer
-            //        // so maybe the peer has committed the logs we just sent
-            //        // but we did not receive the successful reply and did not increase
-            //        // the prevLogIndex
-
-            //        // peer failed to truncate the log and sent a fail reply at this time
-            //        // we just need to update peer's prevLog index to commitIndex
-
-            //        this.prevLogIndex = resp.CommitIndex()
-
-            //        DebugTrace.Debug("peer.append.resp.update: ", this.Name, "; idx =", this.prevLogIndex)
+                return;
+            }
+            DebugTrace.TraceLine("peer.append.resp: ", this.server.Name(), "<-", this.Name);
 
 
-            //    }
-            //    else if this.prevLogIndex > 0 {
-            //        // Decrement the previous log index down until we find a match. Don't
-            //        // let it go below where the peer's commit index is though. That's a
-            //        // problem.
-            //        this.prevLogIndex--
-            //        // if it not enough, we directly decrease to the index of the
-            //        if this.prevLogIndex > resp.Index() {
-            //            this.prevLogIndex = resp.Index()
+            this.setLastActivity(DateTime.Now);
+            // If successful then update the previous log index.
+            lock (mutex)
+            {
 
-            //        }
+                if (resp.Success())
+                {
+                    if (req.Entries.Count > 0)
+                    {
+                        this.prevLogIndex = (int)req.Entries[req.Entries.Count - 1].Index;
 
-            //        DebugTrace.Debug("peer.append.resp.decrement: ", this.Name, "; idx =", this.prevLogIndex)
+                        // if peer append a log entry from the current term
+                        // we set append to true
+                        if (req.Entries[req.Entries.Count - 1].Term == this.server.currentTerm)
+                        {
+                            resp.append = true;
+                        }
+                    }
+                    DebugTrace.TraceLine("peer.append.resp.success: ", this.Name, "; idx =", this.prevLogIndex);
+                    // If it was unsuccessful then decrement the previous log index and
+                    // we'll try again next time.
+                }
+                else
+                {
+                    if (resp.Term() > this.server.Term())
+                    {
+                        // this happens when there is a new leader comes up that this *leader* has not
+                        // known yet.
+                        // this server can know until the new leader send a ae with higher term
+                        // or this server finish processing this response.
+                        DebugTrace.Debug("peer.append.resp.not.update: new.leader.found");
 
-            //    }
-            //}
-            //        this.Unlock();
+                    }
+                    else if (resp.Term() == req.Term && resp.CommitIndex() >= this.prevLogIndex)
+                    {
+                        // we may miss a response from peer
+                        // so maybe the peer has committed the logs we just sent
+                        // but we did not receive the successful reply and did not increase
+                        // the prevLogIndex
 
-            //        // Attach the peer to resp, thus server can know where it comes from
-            //        resp.peer = this.Name;
-            //// Send response to server for processing.
-            //this.server.sendAsync(resp);
+                        // peer failed to truncate the log and sent a fail reply at this time
+                        // we just need to update peer's prevLog index to commitIndex
+
+                        this.prevLogIndex = resp.CommitIndex();
+
+                        DebugTrace.Debug("peer.append.resp.update: ", this.Name, "; idx =", this.prevLogIndex);
+                    }
+                    else if (this.prevLogIndex > 0)
+                    {
+                        // Decrement the previous log index down until we find a match. Don't
+                        // let it go below where the peer's commit index is though. That's a
+                        // problem.
+                        this.prevLogIndex--;
+                        // if it not enough, we directly decrease to the index of the
+                        if (this.prevLogIndex > resp.Index())
+                        {
+                            this.prevLogIndex = resp.Index();
+
+                        };
+
+                        DebugTrace.Debug("peer.append.resp.decrement: ", this.Name, "; idx =", this.prevLogIndex);
+
+                    }
+                }
+            }
+
+            // Attach the peer to resp, thus server can know where it comes from
+            resp.peer = this.Name;
+            // Send response to server for processing.
+            this.server.sendAsync(resp);
         }
 
         // Sends an Snapshot request to the peer through the transport.
         public void sendSnapshotRequest(SnapshotRequest req)
         {
-            //DebugTrace.Debug("peer.snap.send: ", this.Name);
+            DebugTrace.Debug("peer.snap.send: ", this.Name);
 
+            var resp = this.server.Transporter().SendSnapshotRequest(this.server, this, req);
 
-            //resp:= this.server.Transporter().SendSnapshotRequest(this.server, p, req);
+            if (resp == null)
+            {
+                DebugTrace.Debug("peer.snap.timeout: ", this.Name);
+                return;
+            }
 
-            //if resp == null {
-            //    DebugTrace.Debug("peer.snap.timeout: ", this.Name);
-
-            //    return;
-            //}
-
-            //DebugTrace.Debug("peer.snap.recv: ", this.Name);
+            DebugTrace.Debug("peer.snap.recv: ", this.Name);
 
             //If successful, the peer should have been to snapshot state
             //Send it the snapshot!
-            //       this.setLastActivity(time.Now());
-
-
-            //if resp.Success {
-            //    this.sendSnapshotRecoveryRequest();
-
-            //}
-            //else
-            //{
-            //    DebugTrace.Debug("peer.snap.failed: ", this.Name);
-
-            //    return;
-
-            //}
-
+            this.setLastActivity(DateTime.Now);
+            if (resp.Success)
+            {
+                this.sendSnapshotRecoveryRequest();
+            }
+            else
+            {
+                DebugTrace.Debug("peer.snap.failed: ", this.Name);
+                return;
+            }
         }
 
         // Sends an Snapshot Recovery request to the peer through the transport.
         public void sendSnapshotRecoveryRequest()
         {
-            //        req:= newSnapshotRecoveryRequest(this.server.name, this.server.snapshot);
+            SnapshotRecoveryRequest req = new SnapshotRecoveryRequest(this.server.name, this.server.snapshot);
 
-            //        DebugTrace.Debug("peer.snap.recovery.send: ", this.Name);
+            DebugTrace.Debug("peer.snap.recovery.send: ", this.Name);
 
-            //        resp:= this.server.Transporter().SendSnapshotRecoveryRequest(this.server, p, req);
+            var resp = this.server.Transporter().SendSnapshotRecoveryRequest(this.server, this, req);
 
 
-            //if resp == null {
-            //            DebugTrace.Debug("peer.snap.recovery.timeout: ", this.Name);
+            if (resp == null)
+            {
+                DebugTrace.Debug("peer.snap.recovery.timeout: ", this.Name);
+                return;
+            }
 
-            //            return;
+            this.setLastActivity(DateTime.Now);
 
-            //}
-
-            //        this.setLastActivity(time.Now());
-
-            //if resp.Success {
-            //            this.prevLogIndex = req.LastIndex;
-
-            //}
-            //else
-            //{
-            //            DebugTrace.Debug("peer.snap.recovery.failed: ", this.Name);
-
-            //            return;
-
-            //}
-
-            //        this.server.sendAsync(resp);
+            if (resp.Success)
+            {
+                this.prevLogIndex = req.LastIndex;
+            }
+            else
+            {
+                DebugTrace.Debug("peer.snap.recovery.failed: ", this.Name);
+                return;
+            }
+            this.server.sendAsync(resp);
         }
 
         //--------------------------------------
@@ -396,25 +390,25 @@ namespace CSharpRaft
         // send VoteRequest Request
         public void sendVoteRequest(RequestVoteRequest req, RequestVoteResponse c)
         {
-            //{
-            //            DebugTrace.Debug("peer.vote: ", this.server.Name(), "->", this.Name);
+            DebugTrace.Debug("peer.vote: ", this.server.Name(), "->", this.Name);
 
-            //            req.peer = this;
+            req.peer = this;
 
-            //            RequestVoteResponse resp = this.server.Transporter().SendVoteRequest(this.server, this, req);
-            //            if (resp != null)
-            //            {
-            //                DebugTrace.Debug("peer.vote.recv: ", this.server.Name(), "<-", this.Name);
+            RequestVoteResponse resp = this.server.Transporter().SendVoteRequest(this.server, this, req);
+            if (resp != null)
+            {
+                DebugTrace.Debug("peer.vote.recv: ", this.server.Name(), "<-", this.Name);
 
-            //                this.setLastActivity(DateTime.Now);
+                this.setLastActivity(DateTime.Now);
 
-            //                resp.peer = this;
+                resp.peer = this;
 
-            //                c < -resp;
-            //    } else  {
-            //                DebugTrace.Debug("peer.vote.failed: ", this.server.Name(), "<-", this.Name);
-
-            //    }
+                c = resp;
+            }
+            else
+            {
+                DebugTrace.Debug("peer.vote.failed: ", this.server.Name(), "<-", this.Name);
+            }
         }
     }
 }

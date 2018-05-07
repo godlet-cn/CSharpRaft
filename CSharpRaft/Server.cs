@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Serialization.Json;
 using System.Threading.Tasks;
 
 namespace CSharpRaft
@@ -19,6 +20,8 @@ namespace CSharpRaft
         internal string votedFor;
 
         internal Log log;
+
+        internal bool stopped;
 
         internal string leader;
 
@@ -53,6 +56,69 @@ namespace CSharpRaft
         public event RaftEventHandler ElectionTimeoutThresholdReached;
         public event RaftEventHandler HeartbeatReached;
 
+        public void DispatchStateChangeEvent(RaftEventArgs args) {
+            if (StateChanged != null)
+            {
+                StateChanged(this, args);
+            }
+        }
+        public void DispatchLeaderChangeEvent(RaftEventArgs args)
+        {
+            if (LeaderChanged != null)
+            {
+                LeaderChanged(this, args);
+            }
+        }
+        public void DispatchTermChangeEvent(RaftEventArgs args)
+        {
+            if (TermChanged != null)
+            {
+                TermChanged(this, args);
+            }
+        }
+        public void DispatchCommiteEvent(RaftEventArgs args)
+        {
+            if (Commited != null)
+            {
+                Commited(this, args);
+            }
+        }
+        public void DispatchAddPeerEvent(RaftEventArgs args)
+        {
+            if (PeerAdded != null)
+            {
+                PeerAdded(this, args);
+            }
+        }
+        public void DispatchRemovePeerEvent(RaftEventArgs args)
+        {
+            if (PeerRemoved != null)
+            {
+                PeerRemoved(this, args);
+            }
+        }
+        public void DispatchHeartbeatIntervalEvent(RaftEventArgs args)
+        {
+            if (HeartbeatIntervalReached != null)
+            {
+                HeartbeatIntervalReached(this, args);
+            }
+        }
+        public void DispatchElectionTimeoutThresholdEvent(RaftEventArgs args)
+        {
+            if (ElectionTimeoutThresholdReached != null)
+            {
+                ElectionTimeoutThresholdReached(this, args);
+            }
+        }
+
+        public void DispatchHeartbeatEvent(RaftEventArgs args)
+        {
+            if (HeartbeatReached != null)
+            {
+                HeartbeatReached(this, args);
+            }
+        }
         //------------------------------------------------------------------------------
         //
         // Constructor
@@ -109,15 +175,8 @@ namespace CSharpRaft
                         commitIndex = this.log.commitIndex,
                     });
                 }
-                else
-                {
-
-                }
                 return this;
             };
-            RaftEventArgs arg = new RaftEventArgs();
-
-
         }
 
 
@@ -212,7 +271,6 @@ namespace CSharpRaft
         {
             lock (mutex)
             {
-
                 // Temporarily store previous values.
                 ServerState prevState = this.state;
 
@@ -372,15 +430,7 @@ namespace CSharpRaft
                 }
             }
         }
-
-
-        private void initCommands()
-        {
-            Commands.RegisterCommand(new NOPCommand());
-            Commands.RegisterCommand(new DefaultJoinCommand());
-            Commands.RegisterCommand(new DefaultLeaveCommand());
-        }
-
+        
         // Checks if the server is currently running.
         public bool Running()
         {
@@ -422,7 +472,7 @@ namespace CSharpRaft
             }
             catch (Exception ex)
             {
-                DebugTrace.DebugLine("raft: Snapshot dir doesn't exist");
+                DebugTrace.DebugLine("raft: Snapshot directory doesn't exist");
                 Console.Error.WriteLine(string.Format("raft: Initialization error: %s", ex));
                 return;
             }
@@ -637,12 +687,12 @@ namespace CSharpRaft
         // until the event is actually processed before returning.
         public object send(object value)
         {
-            //    if (!this.Running())
-            //    {
-            //        throw Constants.StopError;
-            //    }
+            if (!this.Running())
+            {
+                throw Constants.StopError;
+            }
 
-            //        event := &ev { target: value, c: make(chan error, 1)}
+            //event = &ev { target: value, c: make(chan error, 1)}
             //select
             //{
             //	case this.c < - event:
@@ -658,15 +708,16 @@ namespace CSharpRaft
             //    return event.returnValue, err
 
             //}
+
             return null;
         }
 
         public void sendAsync(object value)
         {
-            //    	if !this.Running() {
-            //    		return
-
-            //        }
+            if (!this.Running())
+            {
+                return;
+            }
 
             //event := &ev { target: value, c: make(chan error, 1)}
             //// try a non-blocking send first
@@ -697,10 +748,9 @@ namespace CSharpRaft
         //   2.Granting vote to candidate
         public void followerLoop()
         {
-            //      DateTime since = DateTime.Now;
-
-
-            //      int electionTimeout = this.ElectionTimeout();
+            DateTime since = DateTime.Now;
+            
+            int electionTimeout = this.ElectionTimeout();
 
             //  timeoutChan:= afterBetween(this.ElectionTimeout(), this.ElectionTimeout() * 2)
 
@@ -782,17 +832,21 @@ namespace CSharpRaft
         // The event loop that is run when the server is in a Candidate state.
         public void candidateLoop()
         {
-            //      // Clear leader value.
-            //      prevLeader:= this.leader
+            // Clear leader value.
+            string prevLeader = this.leader;
+            this.leader = "";
 
-            //  this.leader = ""
+            if (prevLeader != this.leader)
+            {
+                if (LeaderChanged != null)
+                {
+                    LeaderChanged(this, new RaftEventArgs(this.leader, prevLeader));
+                }
+            }
 
-            //  if prevLeader != this.leader {
-            //          this.DispatchEvent(newEvent(LeaderChangeEventType, this.leader, prevLeader))
+            int lastLogIndex, lastLogTerm;
+            this.log.lastInfo(out lastLogIndex, out lastLogTerm);
 
-            //  }
-
-            //      lastLogIndex, lastLogTerm:= this.log.lastInfo()
 
             //  doVote:= true
 
@@ -890,72 +944,65 @@ namespace CSharpRaft
         // The event loop that is run when the server is in a Leader state.
         public void leaderLoop()
         {
-            //        logIndex, _:= this.log.lastInfo()
+            int logIndex, logTerm;
+            this.log.lastInfo(out logIndex, out logTerm);
 
-            //    // Update the peers prevLogIndex to leader's lastLogIndex and start heartbeat.
-            //        DebugTrace.DebugLine("leaderLoop.set.PrevIndex to ", logIndex)
+            // Update the peers prevLogIndex to leader's lastLogIndex and start heartbeat.
+            DebugTrace.DebugLine("leaderLoop.set.PrevIndex to ", logIndex);
 
-            //    for _, peer := range this.peers {
-            //            peer.setPrevLogIndex(logIndex)
+            foreach (var peerItem in this.peers)
+            {
+                peerItem.Value.setPrevLogIndex(logIndex);
+                peerItem.Value.startHeartbeat();
+            }
 
-            //        peer.startHeartbeat()
+            // Commit a NOP after the server becomes leader. From the Raft paper:
+            // "Upon election: send initial empty AppendEntries RPCs (heartbeat) to
+            // each server; repeat during idle periods to prevent election timeouts
+            // (§5.2)". The heartbeats started above do the "idle" period work.
 
-            //    }
+            Task.Factory.StartNew(new Action(() => {
+                this.Do(new NOPCommand { });
+            }));
 
-            //        // Commit a NOP after the server becomes leader. From the Raft paper:
-            //        // "Upon election: send initial empty AppendEntries RPCs (heartbeat) to
-            //        // each server; repeat during idle periods to prevent election timeouts
-            //        // (§5.2)". The heartbeats started above do the "idle" period work.
-            //        this.routineGroup.Add(1)
+            // Begin to collect response from followers
+            while (this.State() == ServerState.Leader)
+            {
+                if (this.stopped) {
+                    // Stop all peers before stop
+                    foreach (var peer in this.peers)
+                    {
+                        peer.Value.stopHeartbeat(false);
+                    }
+                    this.setState(ServerState.Stopped);
+                    return;
+                }
 
-            //    go func()
-            //        {
-            //            defer this.routineGroup.Done()
+                //        var err error
+                //        select
+                //{
+                //		case e := <-this.c:
+                //			switch req := e.target.(type) {
+                //			case Command:
+                //        this.processCommand(req, e)
 
-            //        this.Do(NOPCommand{ })
-            //	}
-            //    ()
+                //                continue
+                //			case *AppendEntriesRequest:
 
-            //	// Begin to collect response from followers
-            //	for this.State() == Leader {
+                //                e.returnValue, _ = this.processAppendEntriesRequest(req)
+                //			case *AppendEntriesResponse:
+                //				this.processAppendEntriesResponse(req)
+                //			case *RequestVoteRequest:
 
-            //        var err error
-            //        select
-            //{
-            //		case <-this.stopped:
-            //			// Stop all peers before stop
-            //			for _, peer := range this.peers
-            //    {
-            //        peer.stopHeartbeat(false)
+                //                e.returnValue, _ = this.processRequestVoteRequest(req)
 
-            //            }
-            //    this.setState(Stopped)
-            //			return
+                //            }
 
-            //		case e := <-this.c:
-            //			switch req := e.target.(type) {
-            //			case Command:
-            //        this.processCommand(req, e)
-
-            //                continue
-            //			case *AppendEntriesRequest:
-
-            //                e.returnValue, _ = this.processAppendEntriesRequest(req)
-            //			case *AppendEntriesResponse:
-            //				this.processAppendEntriesResponse(req)
-            //			case *RequestVoteRequest:
-
-            //                e.returnValue, _ = this.processRequestVoteRequest(req)
-
-            //            }
-
-            //    // Callback to event.
-            //    e.c<- err
-            //}
-            //	}
-
-
-            //    this.syncedPeer = null
+                //    // Callback to event.
+                //    e.c<- err
+                //}
+            }
+            this.syncedPeer = null;
         }
 
         public void snapshotLoop()
@@ -1001,40 +1048,30 @@ namespace CSharpRaft
         // Processes a command.
         public void processCommand(Command command, LogEvent ev)
         {
-            //DebugTrace.DebugLine("server.command.process")
+            DebugTrace.DebugLine("server.command.process");
 
-            //// Create an entry for the command in the log.
-            //entry, err:= this.log.createEntry(this.currentTerm, command, e)
+            try
+            {
+                // Create an entry for the command in the log.
+                var entry = this.log.createEntry(this.currentTerm, command, ev);
 
+                this.log.appendEntry(entry);
+                this.syncedPeer[this.Name()] = true;
 
-            //if err != null {
-            //    DebugTrace.DebugLine("server.command.log.entry.error:", err)
+                if (this.peers.Count == 0)
+                {
+                    int commitIndex = this.log.currentIndex();
 
-            //    e.c < -err
+                    this.log.setCommitIndex(commitIndex);
 
-            //    return
-
-            //}
-
-            //if err := this.log.appendEntry(entry); err != null {
-            //    DebugTrace.DebugLine("server.command.log.error:", err)
-
-            //    e.c < -err
-
-            //    return
-
-            //}
-
-            //this.syncedPeer[this.Name()] = true
-
-            //if len(this.peers) == 0 {
-            //    commitIndex:= this.log.currentIndex()
-
-            //    this.log.setCommitIndex(commitIndex)
-
-            //    DebugTrace.DebugLine("commit index ", commitIndex)
-
-            //}
+                    DebugTrace.DebugLine("commit index ", commitIndex);
+                }
+            }
+            catch (Exception err)
+            {
+                DebugTrace.DebugLine("server.command.log.entry.error:", err);
+                ev.c = err;
+            }
         }
 
         //--------------------------------------
@@ -1053,71 +1090,75 @@ namespace CSharpRaft
         // Processes the "append entries" request.
         public AppendEntriesResponse processAppendEntriesRequest(AppendEntriesRequest req)
         {
+            this.TraceLine("server.ae.process");
 
-            //    this.traceln("server.ae.process")
 
-            //	if req.Term<this.currentTerm
-            //{
-            //    DebugTrace.DebugLine("server.ae.error: stale term")
+                if (req.Term < this.currentTerm)
+            {
+                DebugTrace.DebugLine("server.ae.error: stale term");
 
-            //        return newAppendEntriesResponse(this.currentTerm, false, this.log.currentIndex(), this.log.CommitIndex()), false
+                    return new AppendEntriesResponse(this.currentTerm, false, this.log.currentIndex(), this.log.CommitIndex());
 
-            //    }
+                }
 
-            //	if req.Term == this.currentTerm
-            //{
+            if (req.Term == this.currentTerm)
+            {
+                if (this.State() == ServerState.Leader) {
+                    throw new Exception(string.Format("leader.elected.at.same.term.%d\n", this.currentTerm));
+                }
+                    // step-down to follower when it is a candidate
+                if (this.state == ServerState.Candidate) {
+                    // change state to follower
+                    this.setState(ServerState.Follower);
+                }
 
-            //    _assert(this.State() != Leader, "leader.elected.at.same.term.%d\n", this.currentTerm)
+                // discover new leader when candidate
+                // save leader name when follower
+                this.leader = req.LeaderName;
+                }
+            else
+            {
+                // Update term and leader.
+                this.updateCurrentTerm(req.Term, req.LeaderName);
 
-            //        // step-down to follower when it is a candidate
-            //    if this.state == Candidate {
-            //        // change state to follower
-            //        this.setState(Follower)
+                }
 
-            //        }
+            // Reject if log doesn't contain a matching previous entry.
+            try
+            {
+                this.log.truncate(req.PrevLogIndex, req.PrevLogTerm);
+            }
+            catch (Exception err)
+            {
+                DebugTrace.DebugLine("server.ae.truncate.error: ", err);
+                return new AppendEntriesResponse(this.currentTerm, false, this.log.currentIndex(), this.log.CommitIndex());
+            }
 
-            //    // discover new leader when candidate
-            //    // save leader name when follower
-            //    this.leader = req.LeaderName
+            // Append entries to the log.
+            try
+            {
+                this.log.appendEntries(req.Entries);
+            }
+            catch (Exception err)
+            {
+                DebugTrace.DebugLine("server.ae.append.error: ", err);
+                    return new AppendEntriesResponse(this.currentTerm, false, this.log.currentIndex(), this.log.CommitIndex());
+            }
 
-            //    } else {
-            //    // Update term and leader.
-            //    this.updateCurrentTerm(req.Term, req.LeaderName)
+            try
+            {
+                // Commit up to the commit index.
+                this.log.setCommitIndex(req.CommitIndex);
+            }
+            catch (Exception err)
+            {
+                DebugTrace.DebugLine("server.ae.commit.error: ", err);
 
-            //    }
+                    return new AppendEntriesResponse(this.currentTerm, false, this.log.currentIndex(), this.log.CommitIndex());
+            }
 
-            //	// Reject if log doesn't contain a matching previous entry.
-            //	if err := this.log.truncate(req.PrevLogIndex, req.PrevLogTerm); err != null
-            //{
-            //    DebugTrace.DebugLine("server.ae.truncate.error: ", err)
-
-            //        return newAppendEntriesResponse(this.currentTerm, false, this.log.currentIndex(), this.log.CommitIndex()), true
-
-            //    }
-
-            //	// Append entries to the log.
-            //	if err := this.log.appendEntries(req.Entries); err != null
-            //{
-            //    DebugTrace.DebugLine("server.ae.append.error: ", err)
-
-            //        return newAppendEntriesResponse(this.currentTerm, false, this.log.currentIndex(), this.log.CommitIndex()), true
-
-            //    }
-
-            //	// Commit up to the commit index.
-            //	if err := this.log.setCommitIndex(req.CommitIndex); err != null
-            //{
-            //    DebugTrace.DebugLine("server.ae.commit.error: ", err)
-
-            //        return newAppendEntriesResponse(this.currentTerm, false, this.log.currentIndex(), this.log.CommitIndex()), true
-
-            //    }
-
-            //	// once the server appended and committed all the log entries from the leader
-
-            //	return newAppendEntriesResponse(this.currentTerm, true, this.log.currentIndex(), this.log.CommitIndex()), true
-
-            return null;
+            // once the server appended and committed all the log entries from the leader
+            return new AppendEntriesResponse(this.currentTerm, true, this.log.currentIndex(), this.log.CommitIndex());
         }
 
         // Processes the "append entries" response from the peer. This is only
@@ -1125,58 +1166,50 @@ namespace CSharpRaft
         // states are dropped.
         public void processAppendEntriesResponse(AppendEntriesResponse resp)
         {
-            // // If we find a higher term then change to a follower and exit.
-            // if resp.Term() > this.Term() {
-            //     this.updateCurrentTerm(resp.Term(), "")
+            // If we find a higher term then change to a follower and exit.
+            if (resp.Term() > this.Term()){
+                this.updateCurrentTerm(resp.Term(), "");
+                 return;
+             }
 
-            //     return
+            // panic response if it's not successful.
+            if (!resp.Success()) {
+                return;
+             }
 
-            // }
+            // if one peer successfully append a log from the leader term,
+            // we add it to the synced list
+            if (resp.append == true) {
+                this.syncedPeer[resp.peer] = true;
+             }
 
-            // // panic response if it's not successful.
-            // if !resp.Success() {
-            //     return
+            // Increment the commit count to make sure we have a quorum before committing.
+            if (this.syncedPeer.Count < this.QuorumSize()) {
+                return;
+             }
 
-            // }
+            // Determine the committed index that a majority has.
+            List<int> indices = new List<int>();
+            indices.Add(this.log.currentIndex());
+            foreach (var peer in this.peers)
+            {
+                indices.Add(peer.Value.getPrevLogIndex());
+            }
 
-            // // if one peer successfully append a log from the leader term,
-            // // we add it to the synced list
-            // if resp.append == true {
-            //     this.syncedPeer[resp.peer] = true
+            //TODO:sort
+            //sort.Sort(sort.Reverse(uint64Slice(indices)));
 
-            // }
+            // We can commit up to the index which the majority of the members have appended.
+            int commitIndex= indices[this.QuorumSize() - 1];
 
-            // // Increment the commit count to make sure we have a quorum before committing.
-            // if len(this.syncedPeer) < this.QuorumSize() {
-            //     return
-
-            // }
-
-            // // Determine the committed index that a majority has.
-            // var indices[]uint64
-            //indices = append(indices, this.log.currentIndex())
-
-            // for _, peer := range this.peers {
-            //     indices = append(indices, peer.getPrevLogIndex())
-
-            // }
-            // sort.Sort(sort.Reverse(uint64Slice(indices)))
-
-            // // We can commit up to the index which the majority of the members have appended.
-            // commitIndex:= indices[this.QuorumSize() - 1]
-
-            // committedIndex:= this.log.commitIndex
-
-
-            // if commitIndex > committedIndex {
-            //     // leader needs to do a fsync before committing log entries
-            //     this.log.sync()
-
-            //     this.log.setCommitIndex(commitIndex)
-
-            //     DebugTrace.DebugLine("commit index ", commitIndex)
-
-            // }
+            int committedIndex= this.log.commitIndex;
+             
+             if (commitIndex > committedIndex) {
+                // leader needs to do a fsync before committing log entries
+                this.log.sync();
+                this.log.setCommitIndex(commitIndex);
+                DebugTrace.DebugLine("commit index ", commitIndex);
+             }
         }
 
         // processVoteReponse processes a vote request:
@@ -1186,19 +1219,20 @@ namespace CSharpRaft
         // 3. if the vote is for a smaller term, ignore it and return false.
         public bool processVoteResponse(RequestVoteResponse resp)
         {
-            //if resp.VoteGranted && resp.Term == this.currentTerm {
-            //	return true
+            if (resp.VoteGranted && resp.Term == this.currentTerm) {
+                return true;
+            }
 
-            //       }
-
-            //if resp.Term > this.currentTerm {
-
-            //       DebugTrace.DebugLine("server.candidate.vote.failed")
-            //	this.updateCurrentTerm(resp.Term, "")
-            //} else {
-            //	DebugTrace.DebugLine("server.candidate.vote: denied")
-            //}
-            return false;
+            if (resp.Term > this.currentTerm)
+            {
+                DebugTrace.DebugLine("server.candidate.vote.failed");
+                this.updateCurrentTerm(resp.Term, "");
+            }
+            else
+            {
+                DebugTrace.DebugLine("server.candidate.vote: denied");
+            }
+            return true;
         }
 
         //--------------------------------------
@@ -1219,48 +1253,58 @@ namespace CSharpRaft
         // Processes a "request vote" request.
         public RequestVoteResponse processRequestVoteRequest(RequestVoteRequest req)
         {
+            // If the request is coming from an old term then reject it.
+            if (req.Term < this.Term())
+            {
+                DebugTrace.DebugLine("server.rv.deny.vote: cause stale term");
 
-            //	// If the request is coming from an old term then reject it.
-            //	if req.Term<this.Term() {
-            //		DebugTrace.DebugLine("server.rv.deny.vote: cause stale term")
-            //		return newRequestVoteResponse(this.currentTerm, false), false
-            //	}
+                return new RequestVoteResponse(this.currentTerm, false);
+            }
 
-            //	// If the term of the request peer is larger than this node, update the term
-            //	// If the term is equal and we've already voted for a different candidate then
-            //	// don't vote for this candidate.
-            //	if req.Term > this.Term() {
-            //		this.updateCurrentTerm(req.Term, "")
-            //	} else if this.votedFor != "" && this.votedFor != req.CandidateName {
+            // If the term of the request peer is larger than this node, update the term
+            // If the term is equal and we've already voted for a different candidate then
+            // don't vote for this candidate.
+            if (req.Term > this.Term())
+            {
+                this.updateCurrentTerm(req.Term, "");
+            }
+            else if (this.votedFor != "" && this.votedFor != req.CandidateName)
+            {
+                DebugTrace.DebugLine("server.deny.vote: cause duplicate vote: ", req.CandidateName,
+                    " already vote for ", this.votedFor);
+                return new RequestVoteResponse(this.currentTerm, false);
+            }
 
-            //        DebugTrace.DebugLine("server.deny.vote: cause duplicate vote: ", req.CandidateName,
-            //			" already vote for ", this.votedFor)
-            //		return newRequestVoteResponse(this.currentTerm, false), false
-            //	}
+            // If the candidate's log is not at least as up-to-date as our last log then don't vote.
+            int lastIndex, lastTerm;
+            this.log.lastInfo(out lastIndex, out lastTerm);
 
-            //// If the candidate's log is not at least as up-to-date as our last log then don't vote.
-            //lastIndex, lastTerm := this.log.lastInfo()
-            //	if lastIndex > req.LastLogIndex || lastTerm > req.LastLogTerm {
+            if (lastIndex > req.LastLogIndex || lastTerm > req.LastLogTerm)
+            {
 
-            //    DebugTrace.DebugLine("server.deny.vote: cause out of date log: ", req.CandidateName,
-            //			"Index :[", lastIndex, "]", " [", req.LastLogIndex, "]",
-            //			"Term :[", lastTerm, "]", " [", req.LastLogTerm, "]")
-            //		return newRequestVoteResponse(this.currentTerm, false), false
-            //	}
+                DebugTrace.DebugLine("server.deny.vote: cause out of date log: ", req.CandidateName,
+                        "Index :[", lastIndex, "]", " [", req.LastLogIndex, "]",
+                        "Term :[", lastTerm, "]", " [", req.LastLogTerm, "]");
+                return new RequestVoteResponse(this.currentTerm, false);
+            }
 
-            //// If we made it this far then cast a vote and reset our election time out.
-            //DebugTrace.DebugLine("server.rv.vote: ", this.name, " votes for", req.CandidateName, "at term", req.Term)
-            //	this.votedFor = req.CandidateName
+            // If we made it this far then cast a vote and reset our election time out.
+            DebugTrace.DebugLine("server.rv.vote: ", this.name, " votes for", req.CandidateName, "at term", req.Term);
 
-            //	return newRequestVoteResponse(this.currentTerm, true), true
-            return null;
+            this.votedFor = req.CandidateName;
+
+            return new RequestVoteResponse(this.currentTerm, true);
         }
 
         //--------------------------------------
         // Membership
         //--------------------------------------
 
-        // Adds a peer to the server.
+        /// <summary>
+        /// Adds a peer to the server.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="connectiongString"></param>
         public void AddPeer(string name, string connectiongString)
         {
             DebugTrace.DebugLine("server.peer.add: ", name, this.peers.Count);
@@ -1274,7 +1318,6 @@ namespace CSharpRaft
             // Skip the Peer if it has the same name as the Server
             if (this.name != name)
             {
-
                 Peer peer = new Peer(this, name, connectiongString, this.heartbeatInterval);
 
                 if (this.State() == ServerState.Leader)
@@ -1283,12 +1326,8 @@ namespace CSharpRaft
                 }
 
                 this.peers[peer.Name] = peer;
-                if (PeerAdded != null)
-                {
-                    PeerAdded(this, new RaftEventArgs(name, null));
-                }
+                this.DispatchAddPeerEvent(new RaftEventArgs(name, null));
             }
-
             // Write the configuration to file.
             this.writeConf();
         }
@@ -1308,34 +1347,13 @@ namespace CSharpRaft
                     Console.Error.WriteLine(string.Format("raft: Peer not found: %s", name));
                     return;
                 }
-
-                //		// Stop peer and remove it.
-                //		if (this.State() == ServerState.Leader) {
-                //			// We create a go routine here to avoid potential deadlock.
-                //			// We are holding log write lock when reach this line of code.
-                //			// Peer.stopHeartbeat can be blocked without go routine, if the
-                //			// target go routine (which we want to stop) is calling
-                //			// log.getEntriesAfter and waiting for log read lock.
-                //			// So we might be holding log lock and waiting for log lock,
-                //			// which lead to a deadlock.
-                //			// TODO(xiangli) refactor log lock
-                //			this.routineGroup.Add(1)
-                //			go func()
-                //{
-                //    defer this.routineGroup.Done()
-
-                //                peer.stopHeartbeat(true)
-
-                //            }
-                //()
-                //		}
-
-                this.peers.Remove(name);
-
-                if (PeerRemoved != null)
+                // Stop peer and remove it.
+                if (this.State() == ServerState.Leader)
                 {
-                    PeerRemoved(this, new RaftEventArgs(name, null));
+                    peer.stopHeartbeat(true);
                 }
+                this.peers.Remove(name);
+                this.DispatchRemovePeerEvent(new RaftEventArgs(name, null));
             }
 
             // Write the configuration to file.
@@ -1345,96 +1363,84 @@ namespace CSharpRaft
         //--------------------------------------
         // Log compaction
         //--------------------------------------
-
         public void TakeSnapshot()
         {
-            //	if (this.stateMachine == null) {
-            //                throw new Exception("Snapshot: Cannot create snapshot. Missing state machine.");
-            //	}
+            if (this.stateMachine == null)
+            {
+                throw new Exception("Snapshot: Cannot create snapshot. Missing state machine.");
+            }
 
-            //	// Shortcut without lock
-            //	// Exit if the server is currently creating a snapshot.
-            //	if (this.pendingSnapshot != null ){
-            //		return errors.New("Snapshot: Last snapshot is not finished.")
-            //	}
+            // Shortcut without lock
+            // Exit if the server is currently creating a snapshot.
+            if (this.pendingSnapshot != null)
+            {
+                throw new Exception("Snapshot: Last snapshot is not finished.");
+            }
 
-            //// TODO: acquire the lock and no more committed is allowed
-            //// This will be done after finishing refactoring heartbeat
-            //DebugTrace.DebugLine("take.snapshot")
+            // TODO: acquire the lock and no more committed is allowed
+            // This will be done after finishing refactoring heartbeat
+            DebugTrace.DebugLine("take.snapshot");
 
-            //	lastIndex, lastTerm := this.log.commitInfo()
 
-            //	// check if there is log has been committed since the
-            //	// last snapshot.
-            //	if lastIndex == this.log.startIndex {
-            //		return null
+            int lastIndex, lastTerm;
+            this.log.commitInfo(out lastIndex, out lastTerm);
 
-            //    }
+            // check if there is log has been committed since the last snapshot.
+            if (lastIndex == this.log.startIndex)
+            {
+                return;
+            }
 
-            //path := this.SnapshotPath(lastIndex, lastTerm)
-            //    // Attach snapshot to pending snapshot and save it to disk.
-            //    this.pendingSnapshot = &Snapshot{ lastIndex, lastTerm, null, null, path}
+            string path = this.SnapshotPath(lastIndex, lastTerm);
+            // Attach snapshot to pending snapshot and save it to disk.
+            this.pendingSnapshot = new Snapshot() { LastIndex = lastIndex, LastTerm = lastTerm, Peers = null, State = null, Path = path };
 
-            //state, err := this.stateMachine.Save()
-            //	if err != null {
-            //		return err
 
-            //    }
+            byte[] state = this.stateMachine.Save();
 
-            //// Clone the list of peers.
-            //peers := make([]* Peer, 0, len(this.peers)+1)
-            //	for _, peer := range this.peers
-            //{
-            //    peers = append(peers, peer.clone())
+            // Clone the list of peers.
+            List<Peer> peers = new List<Peer>();
+            foreach (var peeritem in this.peers)
+            {
+                peers.Add(peeritem.Value);
+            }
+            peers.Add(new Peer { Name = this.Name(), ConnectionString = this.connectionString });
 
-            //    }
-            //peers = append(peers, &Peer{ Name: this.Name(), ConnectionString: this.connectionString})
+            // Attach snapshot to pending snapshot and save it to disk.
+            this.pendingSnapshot.Peers = peers;
+            this.pendingSnapshot.State = state;
+            this.saveSnapshot();
 
-            //    // Attach snapshot to pending snapshot and save it to disk.
-            //    this.pendingSnapshot.Peers = peers
-            //    this.pendingSnapshot.State = state
-            //    this.saveSnapshot()
+                // We keep some log entries after the snapshot.
+                // We do not want to send the whole snapshot to the slightly slow machines
+            if (lastIndex - this.log.startIndex > Constants. NumberOfLogEntriesAfterSnapshot) {
+                int compactIndex = lastIndex - Constants.NumberOfLogEntriesAfterSnapshot;
 
-            //	// We keep some log entries after the snapshot.
-            //	// We do not want to send the whole snapshot to the slightly slow machines
-            //	if lastIndex-this.log.startIndex > NumberOfLogEntriesAfterSnapshot {
-            //    compactIndex:= lastIndex - NumberOfLogEntriesAfterSnapshot
-
-            //        compactTerm:= this.log.getEntry(compactIndex).Term()
-
-            //        this.log.compact(compactIndex, compactTerm)
-
-            //    }
-
-            //	return null
+                int compactTerm = this.log.getEntry(compactIndex).Term();
+                this.log.compact(compactIndex, compactTerm);
+            }
         }
 
         // Retrieves the log path for the server.
         public void saveSnapshot()
         {
-            //	if this.pendingSnapshot == null {
-            //		return errors.New("pendingSnapshot.is.null")
-            //	}
+            if (this.pendingSnapshot == null)
+            {
+                throw new Exception("pendingSnapshot.is.null");
+            }
+            // Write snapshot to disk.
+            this.pendingSnapshot.save();
+            // Swap the current and last snapshots.
+            var tmp = this.snapshot;
+            this.snapshot = this.pendingSnapshot;
 
-            //	// Write snapshot to disk.
-            //	if err := this.pendingSnapshot.save(); err != null {
-            //		return err
+            // Delete the previous snapshot if there is any change
+            if (tmp != null && !(tmp.LastIndex == this.snapshot.LastIndex && tmp.LastTerm == this.snapshot.LastTerm))
+            {
+                tmp.remove();
 
-            //    }
-
-            //// Swap the current and last snapshots.
-            //tmp := this.snapshot
-            //    this.snapshot = this.pendingSnapshot
-
-            //	// Delete the previous snapshot if there is any change
-            //	if tmp != null && !(tmp.LastIndex == this.snapshot.LastIndex && tmp.LastTerm == this.snapshot.LastTerm)
-            //{
-            //    tmp.remove()
-
-            //    }
-            //this.pendingSnapshot = null
-
-            //	return null
+            }
+            this.pendingSnapshot = null;
         }
 
         // Retrieves the log path for the server.
@@ -1453,22 +1459,20 @@ namespace CSharpRaft
 
         public SnapshotResponse processSnapshotRequest(SnapshotRequest req)
         {
-            //   // If the follower’s log contains an entry at the snapshot’s last index with a term
-            //   // that matches the snapshot’s last term, then the follower already has all the
-            //   // information found in the snapshot and can reply false.
-            //   entry := this.log.getEntry(req.LastIndex)
+            // If the follower’s log contains an entry at the snapshot’s last index with a term
+            // that matches the snapshot’s last term, then the follower already has all the
+            // information found in the snapshot and can reply false.
+            var entry = this.log.getEntry(req.LastIndex);
 
-            //if entry != null && entry.Term() == req.LastTerm
-            //   {
-            //       return newSnapshotResponse(false)
+            if( entry != null && entry.Term() == req.LastTerm)
+               {
+                return new SnapshotResponse(false);
+               }
 
-            //   }
+            // Update state.
+            this.setState(ServerState.Snapshotting);
 
-            //   // Update state.
-            //   this.setState(Snapshotting)
-
-            //return newSnapshotResponse(true)
-            return null;
+            return new SnapshotResponse(true);
         }
 
         public SnapshotRecoveryResponse SnapshotRecoveryRequest(SnapshotRecoveryRequest req)
@@ -1481,143 +1485,104 @@ namespace CSharpRaft
 
         public SnapshotRecoveryResponse processSnapshotRecoveryRequest(SnapshotRecoveryRequest req)
         {
-            //// Recover state sent from request.
-            //if err := this.stateMachine.Recovery(req.State); err != null
-            //   {
-            //       panic("cannot recover from previous state")
+            // Recover state sent from request.
+            this.stateMachine.Recovery(req.State);
 
-            //   }
+            // Recover the cluster configuration.
+            this.peers = new Dictionary<string, Peer>();
+            foreach (var peer in req.Peers)
+            {
+                this.AddPeer(peer.Name, peer.ConnectionString);
+            }
 
-            //   // Recover the cluster configuration.
-            //   this.peers = make(map [string]*Peer)
-            //for _, peer := range req.Peers
-            //   {
-            //       this.AddPeer(peer.Name, peer.ConnectionString)
+            // Update log state.
+            this.currentTerm = req.LastTerm;
+            this.log.updateCommitIndex(req.LastIndex);
 
-            //   }
+            // Create local snapshot.
+            this.pendingSnapshot = new Snapshot() {
+                LastIndex = req.LastIndex,
+                LastTerm = req.LastTerm,
+                Peers = req.Peers,
+                State = req.State,
+                Path = this.SnapshotPath(req.LastIndex, req.LastTerm)
+            };
+            this.saveSnapshot();
 
-            //   // Update log state.
-            //   this.currentTerm = req.LastTerm
-            //  this.log.updateCommitIndex(req.LastIndex)
+            // Clear the previous log entries.
+            this.log.compact(req.LastIndex, req.LastTerm);
 
-            //// Create local snapshot.
-            //this.pendingSnapshot = &Snapshot { req.LastIndex, req.LastTerm, req.Peers, req.State, this.SnapshotPath(req.LastIndex, req.LastTerm)}
-            //   this.saveSnapshot()
-
-            //// Clear the previous log entries.
-            //this.log.compact(req.LastIndex, req.LastTerm)
-
-            //return newSnapshotRecoveryResponse(req.LastTerm, true, req.LastIndex)
-
-            return null;
+            return new SnapshotRecoveryResponse(req.LastTerm, true, req.LastIndex);
         }
 
         // Load a snapshot at restart
         public void LoadSnapshot()
         {
-            //	// Open snapshot/ directory.
-            //	dir, err := os.OpenFile(path.Join(this.path, "snapshot"), os.O_RDONLY, 0)
-            //	if err != null
-            //{
-            //    DebugTrace.DebugLine("cannot.open.snapshot: ", err)
+            // Open snapshot/ directory.
+            var filenames=Directory.GetFiles(Path.Combine(this.path, "snapshot"));
+            if (filenames.Length == 0) {
+                DebugTrace.DebugLine("no.snapshot.to.load");
+                return;
+            }
 
-            //        return err
+            // Grab the latest snapshot.
+            //sort.Strings(filenames);
 
-            //    }
+            string snapshotPath= Path.Combine(this.path, "snapshot", filenames[filenames.Length - 1]);
+            // Read snapshot data.
+            using (FileStream file = File.Open(snapshotPath, FileMode.Open, FileAccess.Read))
+            {
+                try
+                {
+                    // Check checksum.
+                    byte[] crcBytes = new byte[8];
+                    file.Read(crcBytes, 0, crcBytes.Length);
+                    string checksum=System.Text.Encoding.Default.GetString(crcBytes);
+                  
+                    // Load remaining snapshot contents.
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        file.Read(ms.GetBuffer(), 0, (int)(file.Length - file.Position));
+                        ms.Flush();
+                        ms.Seek(0, SeekOrigin.Begin);
+                        // Generate checksum.
+                        Crc32 crc = new Crc32();
+                        string byteChecksum = crc.CheckSum(ms);
+                        if (!checksum.Equals(byteChecksum) )
+                        {
+                            DebugTrace.DebugLine(checksum, " ", byteChecksum);
+                            throw new Exception("bad snapshot file");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("checksum.err: bad.snapshot.file");
+                }
+            }
 
-            //// Retrieve a list of all snapshots.
-            //filenames, err := dir.Readdirnames(-1)
-            //	if err != null
-            //{
-            //    dir.Close()
-            //        panic(err)
+            try
+            {
+                // Recover snapshot into state machine.
+                this.stateMachine.Recovery(this.snapshot.State);
+            }
+            catch (Exception err)
+            {
+                DebugTrace.DebugLine("recovery.snapshot.error: ", err);
+            }
 
-            //    }
-            //dir.Close()
-
-            //	if len(filenames) == 0 {
-            //    DebugTrace.DebugLine("no.snapshot.to.load")
-
-            //        return null
-
-            //    }
-
-            //// Grab the latest snapshot.
-            //sort.Strings(filenames)
-            //    snapshotPath := path.Join(this.path, "snapshot", filenames [len(filenames) - 1])
-
-            //	// Read snapshot data.
-            //	file, err := os.OpenFile(snapshotPath, os.O_RDONLY, 0)
-            //	if err != null
-            //{
-            //    return err
-
-            //    }
-            //defer file.Close()
-
-            //    // Check checksum.
-            //var checksum uint32
-            //    n, err := fmt.Fscanf(file, "%08x\n", &checksum)
-            //	if err != null
-            //{
-            //    return err
-
-            //    } else if n != 1 {
-            //    return errors.New("checksum.err: bad.snapshot.file")
-
-            //    }
-
-            //// Load remaining snapshot contents.
-            //b, err := ioutil.ReadAll(file)
-            //	if err != null
-            //{
-            //    return err
-
-            //    }
-
-            //// Generate checksum.
-            //byteChecksum := crc32.ChecksumIEEE(b)
-            //	if uint32(checksum) != byteChecksum
-            //{
-            //    DebugTrace.DebugLine(checksum, " ", byteChecksum)
-
-            //        return errors.New("bad snapshot file")
-
-            //    }
-
-            //	// Decode snapshot.
-            //	if err = json.Unmarshal(b, &this.snapshot); err != null
-            //{
-            //    DebugTrace.DebugLine("unmarshal.snapshot.error: ", err)
-
-            //        return err
-
-            //    }
-
-            //	// Recover snapshot into state machine.
-            //	if err = this.stateMachine.Recovery(this.snapshot.State); err != null
-            //{
-            //    DebugTrace.DebugLine("recovery.snapshot.error: ", err)
-
-            //        return err
-
-            //    }
-
-            //	// Recover cluster configuration.
-            //	for _, peer := range this.snapshot.Peers
-            //{
-            //    this.AddPeer(peer.Name, peer.ConnectionString)
-
-            //    }
-
-            //// Update log state.
-            //this.log.startTerm = this.snapshot.LastTerm
-            //this.log.startIndex = this.snapshot.LastIndex
-            //this.log.updateCommitIndex(this.snapshot.LastIndex)
-
-            //	return err
+            // Recover cluster configuration.
+            foreach (var peer in this.snapshot.Peers)
+            {
+                this.AddPeer(peer.Name, peer.ConnectionString);
+            }
+           
+            // Update log state.
+            this.log.startTerm = this.snapshot.LastTerm;
+            this.log.startIndex = this.snapshot.LastIndex;
+            this.log.updateCommitIndex(this.snapshot.LastIndex);
         }
-
+        
         //--------------------------------------
         // Config File
         //--------------------------------------
@@ -1626,75 +1591,55 @@ namespace CSharpRaft
         // So when the raft server restarts, it will commit upto the flushed commitIndex.
         public void FlushCommitIndex()
         {
-            //DebugTrace.DebugLine("server.conf.update")
-            //// Write the configuration to file.
-            //this.writeConf()
+            DebugTrace.DebugLine("server.conf.update");
+            // Write the configuration to file.
+            this.writeConf();
         }
 
         public void writeConf()
         {
+            List<Peer> peers = new List<Peer>();
+            foreach (var peerItem in this.peers)
+            {
+                peers.Add(peerItem.Value.Clone());
+            }
 
-            //   peers:= make([] * Peer, len(this.peers))
+            Config r = new Config()
+            {
+                CommitIndex = this.log.commitIndex,
+                Peers = peers
+            };
 
-            //i:= 0
-
-            //   for _, peer := range this.peers {
-            //       peers[i] = peer.clone()
-
-            //       i++
-
-            //   }
-
-            //   r:= &Config{
-            //       CommitIndex: this.log.commitIndex,
-            //	Peers: peers,
-            //}
-
-            //   b, _:= json.Marshal(r)
+            string confPath = Path.Combine(this.path, "conf");
+            string tmpConfPath = Path.Combine(this.path, "conf.tmp");
 
 
-            //   confPath:= path.Join(this.path, "conf")
-
-            //   tmpConfPath:= path.Join(this.path, "conf.tmp")
-
-
-            //   err:= writeFileSynced(tmpConfPath, b, 0600)
-
-
-            //   if err != null {
-            //       panic(err)
-
-            //   }
-
-            //   os.Rename(tmpConfPath, confPath)
+            using (FileStream file = new FileStream(tmpConfPath, FileMode.OpenOrCreate, FileAccess.ReadWrite)) {
+                DataContractJsonSerializer ser = new DataContractJsonSerializer(typeof(Config));
+                ser.WriteObject(file,r);
+            }
+            File.Replace(tmpConfPath, confPath, confPath+".bak");
         }
 
         // Read the configuration for the server.
         public void readConf()
         {
-            //	confPath := path.Join(this.path, "conf")
-            //	DebugTrace.DebugLine("readConf.open ", confPath)
+            string confPath = Path.Combine(this.path, "conf");
+            DebugTrace.DebugLine("readConf.open ", confPath);
+            if (File.Exists(confPath))
+            {
+                using (FileStream file = File.Open(confPath, FileMode.OpenOrCreate, FileAccess.ReadWrite))
+                {
+                    var conf = new Config();
+                    DataContractJsonSerializer ser = new DataContractJsonSerializer(typeof(Config));
+                    conf = (Config)ser.ReadObject(file);
 
-            //	// open conf file
-            //	b, err := ioutil.ReadFile(confPath)
-
-            //	if err != null
-            //{
-            //    return null
-
-            //    }
-
-            //conf := &Config { }
-
-            //	if err = json.Unmarshal(b, conf); err != null
-            //{
-            //    return err
-
-            //    }
-
-            //	this.log.updateCommitIndex(conf.CommitIndex)
-
-            //	return null
+                    if (conf != null)
+                    {
+                        this.log.updateCommitIndex(conf.CommitIndex);
+                    }
+                }
+            }
         }
 
         //--------------------------------------

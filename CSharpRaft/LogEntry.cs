@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization.Json;
+using System.Text;
 
 namespace CSharpRaft
 {
@@ -18,11 +19,16 @@ namespace CSharpRaft
     {
         internal protobuf.LogEntry pb;
 
-        public int Position;  // position in the log file
+        // position in the log file
+        public long Position;  
 
         internal Log log;
 
         internal LogEvent ev;
+
+        public LogEntry() {
+
+        }
 
         // Creates a new log entry associated with a log.
         public LogEntry(Log log, LogEvent ev,  int index, int term, Command command)
@@ -76,16 +82,43 @@ namespace CSharpRaft
 
         // Encodes the log entry to a buffer. Returns the number of bytes
         // written and any error that may have occurred.
-        public void Encode(Stream writer)
+        public int Encode(Stream writer)
         {
-            Serializer.Serialize<protobuf.LogEntry>(writer, this.pb);
+            int size=0;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                Serializer.Serialize<protobuf.LogEntry>(ms, this.pb);
+
+                byte[] data = ms.ToArray();
+                byte[] len = BitConverter.GetBytes(data.Length);
+
+                writer.Write(len, 0, len.Length);
+                writer.Write(data, 0, data.Length);
+
+                size = len.Length + data.Length;
+            }
+            return size;
         }
 
         // Decodes the log entry from a buffer. Returns the number of bytes read and
         // any error that occurs.
         public void Decode(Stream reader)
         {
-            this.pb = Serializer.Deserialize<protobuf.LogEntry>(reader);
+            byte[] lenData = new byte[8];
+            reader.Read(lenData, 0, 8);
+            int len = BitConverter.ToInt32(lenData, 0);
+
+            byte[] data = new byte[len];
+            reader.Read(data, 0, len);
+
+            using (MemoryStream ms = new MemoryStream())
+            {
+                ms.Write(data, 0, data.Length);
+                ms.Flush();
+                ms.Seek(0, SeekOrigin.Begin);
+
+                this.pb = Serializer.Deserialize<protobuf.LogEntry>(ms);
+            }
         }
 
     }

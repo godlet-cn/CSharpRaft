@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using uint64 =System.UInt64;
+using uint64 = System.UInt64;
 
 namespace CSharpRaft
 {
@@ -12,10 +12,9 @@ namespace CSharpRaft
         Exception err;
     }
 
-    
     public class Log
     {
-        public Func<LogEntry, Command,object> ApplyFunc;
+        public Func<LogEntry, Command, object> ApplyFunc;
 
         internal FileStream file;
 
@@ -27,9 +26,10 @@ namespace CSharpRaft
 
         internal object mutex;
 
-        internal int startIndex;   // the index before the first entry in the Log entries
+        // the index before the first entry in the Log entries
+        internal int startIndex;
 
-        internal  int startTerm;
+        internal int startTerm;
 
         internal bool initialized;
 
@@ -130,9 +130,6 @@ namespace CSharpRaft
         }
 
 
-
-
-
         //------------------------------------------------------------------------------
         //
         // Methods
@@ -148,69 +145,38 @@ namespace CSharpRaft
         public void open(string path)
         {
             // Read all the entries from the log if one exists.
-            long readBytes;
-
             this.file = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
             this.path = path;
             this.initialized = true;
 
             DebugTrace.DebugLine("log.open.create ", path);
 
-
             // Read the file and decode entries.
-            //        for {
-            //            // Instantiate log entry and decode into it.
-            //            entry, _= newLogEntry(l, null, 0, 0, null)
+            while (file.Position < file.Length)
+            {
+                // Instantiate log entry and decode into it.
+                LogEntry entry = new LogEntry(this, null, 0, 0, null);
 
-            //    entry.Position, _ = this.file.Seek(0, os.SEEK_CUR)
+                entry.Position = file.Seek(0, SeekOrigin.Current);
 
+                entry.Decode(this.file);
+                if (entry.Index() > this.startIndex)
+                {
+                    // Append entry.
+                    this.entries.Add(entry);
 
-            //    n, err= entry.Decode(this.file)
+                    if (entry.Index() <= this.commitIndex)
+                    {
+                        Command command = Commands.newCommand(entry.CommandName(), entry.Command());
+                        this.ApplyFunc(entry, command);
+                    }
+                    DebugTrace.DebugLine("open.log.append log index ", entry.Index());
+                }
+            }
 
-            //    if err != null {
-            //                if err == io.EOF {
+            DebugTrace.DebugLine("open.log.recovery number of log ", this.entries.Count);
 
-            //                    DebugTrace.DebugLine("open.log.append: finish ")
-
-            //        }
-            //                else
-            //                {
-            //                    if err = os.Truncate(path, readBytes); err != null {
-            //                        return fmt.Errorf("raft.Log: Unable to recover: %v", err)
-
-            //            }
-            //                }
-            //                break
-
-            //    }
-            //            if entry.Index() > this.startIndex {
-            //                // Append entry.
-            //                this.entries = append(this.entries, entry)
-
-            //        if entry.Index() <= this.commitIndex {
-            //                    command, err= newCommand(entry.CommandName(), entry.Command())
-
-            //            if err != null {
-            //                        continue
-
-            //            }
-            //                    this.Applypublic (entry, command)
-
-            //        }
-
-            //                DebugTrace.DebugLine("open.log.append log index ", entry.Index())
-
-            //    }
-
-            //            readBytes += int64(n)
-
-            //}
-
-            //        DebugTrace.DebugLine("open.log.recovery number of log ", this.entries.Count)
-
-            //this.initialized = true
-
-            //return null
+            this.initialized = true;
         }
 
         // Closes the log file.
@@ -223,7 +189,6 @@ namespace CSharpRaft
                     this.file.Close();
 
                     this.file = null;
-
                 }
                 this.entries = new List<LogEntry>();
             }
@@ -240,9 +205,9 @@ namespace CSharpRaft
         //--------------------------------------
 
         // Creates a log entry associated with this log.
-        public LogEntry createEntry(int term, Command command,LogEvent ev)
+        public LogEntry createEntry(int term, Command command, LogEvent ev)
         {
-            return new LogEntry(this, ev,this.nextIndex(), term, command);
+            return new LogEntry(this, ev, this.nextIndex(), term, command);
         }
 
         // Retrieves an entry from the log. If the entry has been eliminated because
@@ -443,7 +408,7 @@ namespace CSharpRaft
                     // Apply the changes to the state machine and store the error code.
                     object returnValue = this.ApplyFunc(entry, command);
 
-                    DebugTrace.Debug("setCommitIndex.set.result index: %v, entries index: %v", i, entryIndex);
+                    DebugTrace.Debug("setCommitIndex.set.result index: {0}, entries index: {1}", i, entryIndex);
                     if (entry.ev != null)
                     {
                         entry.ev.returnValue = returnValue;
@@ -463,298 +428,264 @@ namespace CSharpRaft
         // Set the commitIndex at the head of the log file to the current
         // commit Index. This should be called after obtained a log lock
         public void flushCommitIndex()
-{
+        {
             this.file.Seek(0, SeekOrigin.Begin);
 
-            //TODO:
-            //fmt.Fprintf(this.file, "%8x\n", this.commitIndex);
+            byte[] indexData = BitConverter.GetBytes(this.commitIndex);
+            this.file.Write(indexData, 0, indexData.Length);
 
             this.file.Seek(0, SeekOrigin.End);
         }
 
-////--------------------------------------
-//// Truncation
-////--------------------------------------
-
-//// Truncates the log to the given index and term. This only works if the log
-//// at the index has not been committed.
-//public void truncate(int index , int term )  {
-
-//            lock (mutex) { 
-//            DebugTrace.DebugLine("log.truncate: ", index);
-
-//        	// Do not allow committed entries to be truncated.
-//        	if (index<this.commitIndex)
-//{
-
-//                DebugTrace.DebugLine("log.truncate.before");
-
-//                return fmt.Errorf("raft.Log: Index is already committed (%v): (IDX=%v, TERM=%v)", this.commitIndex, index, term);
-
-//            }
-
-//        	// Do not truncate past end of entries.
-//        	if (index > this.startIndex+this.entries.Count)
-//        {
-//                DebugTrace.DebugLine("log.truncate.after");
-
-//                return fmt.Errorf("raft.Log: Entry index does not exist (MAX=%v): (IDX=%v, TERM=%v)", this.entries.Count, index, term);
-
-//            }
-
-//        	// If we're truncating everything then just clear the entries.
-//        	if (index == this.startIndex)
-//{
-
-//                DebugTrace.DebugLine("log.truncate.clear");
-
-//                this.file.Truncate(0);
-
-//                this.file.Seek(0, SeekOrigin.Begin);
-
-//                    // notify clients if this node is the previous leader
-//                    foreach (var entry in this.entries)
-//                    {
-//                        if (entry.ev != null)
-//            {
-//                            entry.ev.c = errors.New("command failed to be committed due to node failure");
-
-//                        }
-//                    }
-
-//                    this.entries = new List<LogEntry>();
-//} else {
-//    // Do not truncate if the entry at index does not have the matching term.
-//    entry= this.entries[index - this.startIndex - 1]
-
-//                if this.entries.Count > 0 && entry.Term() != term {
-
-//        DebugTrace.DebugLine("log.truncate.termMismatch")
-
-//                    return fmt.Errorf("raft.Log: Entry at index does not have matching term (%v): (IDX=%v, TERM=%v)", entry.Term(), index, term)
-
-//                }
-
-//    // Otherwise truncate up to the desired entry.
-//    if index < this.startIndex + uint64(this.entries.Count) {
-
-//    DebugTrace.DebugLine("log.truncate.finish");
-
-//                    position = this.entries[index - this.startIndex].Position;
-//                      this.file.Truncate(position);
-
-//                    this.file.Seek(position, os.SEEK_SET);
-
-//                    // notify clients if this node is the previous leader
-//        for i = index - this.startIndex; i < uint64(this.entries.Count); i++ {
-//            entry= this.entries[i]
-
-//                        if entry.event != null
-//        {
-//                entry.event.c < -errors.New("command failed to be committed due to node failure");
-
-//                        }
-//        }
-
-//    this.entries = this.entries[0 : index - this.startIndex];
-
-//                }
-//}
-
-//        	return null;
-//}
-//        }
-
-////--------------------------------------
-//// Append
-////--------------------------------------
-
-//// Appends a series of entries to the log.
-//public void appendEntries(entries[]*protobuf.LogEntry) error {
-
-//            this.mutex.Lock()
-//            defer this.mutex.Unlock()
-
-//            startPosition, _ = this.file.Seek(0, os.SEEK_CUR)
-
-//        	w = bufio.NewWriter(this.file)
-
-//            var size int64
-
-//            var err error
-//        	// Append each entry but exit if we hit an error.
-//        	for i = range entries
-//{
-//    logEntry= &LogEntry
-//            {
-//        log: l,
-//        			Position: startPosition,
-//        			pb: entries[i],
-//        		}
-
-//    if size, err = this.writeEntry(logEntry, w); err != null
-//            {
-//        return err
-
-//                }
-
-//    startPosition += size
-//        }
-//w.Flush()
-//        err = this.sync()
-
-//        	if err != null {
-
-//    panic(err)
-
-//            }
-
-//        	return null
-//        }
-
-//// Writes a single log entry to the end of the log.
-//public void appendEntry(entry* LogEntry) error {
-
-//            this.mutex.Lock()
-//            defer this.mutex.Unlock()
-
-//        	if this.file == null {
-//        		return errors.New("raft.Log: Log is not open")
-//        	}
-
-//        	// Make sure the term and index are greater than the previous.
-//        	if this.entries.Count > 0 {
-
-//                lastEntry = this.entries[this.entries.Count - 1]
-//        		if entry.Term() < lastEntry.Term() {
-//        			return fmt.Errorf("raft.Log: Cannot append entry with earlier term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index())
-//        		} else if entry.Term() == lastEntry.Term() && entry.Index() <= lastEntry.Index() {
-//        			return fmt.Errorf("raft.Log: Cannot append entry with earlier index in the same term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index())
-//        		}
-//        	}
-
-//        	position, _ = this.file.Seek(0, os.SEEK_CUR)
-
-//        	entry.Position = position
-
-//        	// Write to storage.
-//        	if _, err = entry.Encode(this.file); err != null {
-//    return err
-
-//            }
-
-//        	// Append to entries list if stored on disk.
-//        	this.entries = append(this.entries, entry)
-
-//        	return null
-//        }
-
-//// appendEntry with Buffered io
-//public void writeEntry(entry* LogEntry, w io.Writer) (int64, error) {
-//        	if this.file == null {
-//        		return -1, errors.New("raft.Log: Log is not open")
-//        	}
-
-//        	// Make sure the term and index are greater than the previous.
-//        	if this.entries.Count > 0 {
-
-//                lastEntry = this.entries[this.entries.Count - 1]
-//        		if entry.Term() < lastEntry.Term() {
-//        			return -1, fmt.Errorf("raft.Log: Cannot append entry with earlier term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index())
-//        		} else if entry.Term() == lastEntry.Term() && entry.Index() <= lastEntry.Index() {
-//        			return -1, fmt.Errorf("raft.Log: Cannot append entry with earlier index in the same term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index())
-//        		}
-//        	}
-
-//        	// Write to storage.
-//        	size, err = entry.Encode(w)
-//        	if err != null {
-//        		return -1, err
-//        	}
-
-//            // Append to entries list if stored on disk.
-//            this.entries = append(this.entries, entry)
-
-//        	return int64(size), null
-//        }
-
-////--------------------------------------
-//// Log compaction
-////--------------------------------------
-
-//// compact the log before index (including index)
-//public void compact(index uint64, term uint64) error {
-//        	var entries[]* LogEntry
-
-
-//            this.mutex.Lock()
-//            defer this.mutex.Unlock()
-
-//        	if index == 0 {
-//        		return null
-
-//            }
-//        	// nothing to compaction
-//        	// the index may be greater than the current index if
-//        	// we just recovery from on snapshot
-//        	if index >= this.internalCurrentIndex() {
-
-//                entries = make([] * LogEntry, 0)
-//        	} else {
-//        		// get all log entries after index
-//        		entries = this.entries[index - this.startIndex:]
-
-//            }
-
-//// create a new log file and add all the entries
-//new_file_path = this.path + ".new"
-
-//file, err = os.OpenFile(new_file_path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-//        	if err != null {
-//    return err
-
-//            }
-//        	for _, entry = range entries
-//{
-//    position, _= this.file.Seek(0, os.SEEK_CUR)
-
-//                entry.Position = position
-
-
-//                if _, err = entry.Encode(file); err != null
-//            {
-//        file.Close()
-
-//                    os.Remove(new_file_path)
-
-//                    return err
-
-//                }
-//}
-//file.Sync()
-
-//        old_file = this.file
-
-//// rename the new log file
-//err = os.Rename(new_file_path, this.path)
-//        	if err != null {
-//    file.Close()
-//                os.Remove(new_file_path)
-
-//                return err
-
-//            }
-//        	this.file = file
-
-//// close the old log file
-//old_file.Close()
-
-//            // compaction the in memory log
-//        this.entries = entries
-//            this.startIndex = index
-//            this.startTerm = term
-//        	return null
-//        }
+        //--------------------------------------
+        // Truncation
+        //--------------------------------------
+
+        // Truncates the log to the given index and term. This only works if the log
+        // at the index has not been committed.
+        public void truncate(int index, int term)
+        {
+            lock (mutex)
+            {
+                DebugTrace.DebugLine("log.truncate: ", index);
+
+                // Do not allow committed entries to be truncated.
+                if (index < this.commitIndex)
+                {
+                    DebugTrace.DebugLine("log.truncate.before");
+                    throw new Exception(string.Format("raft.Log: Index is already committed (%v): (IDX=%v, TERM=%v)", this.commitIndex, index, term));
+                }
+
+                // Do not truncate past end of entries.
+                if (index > this.startIndex + this.entries.Count)
+                {
+                    DebugTrace.DebugLine("log.truncate.after");
+
+                    throw new Exception(string.Format("raft.Log: Entry index does not exist (MAX=%v): (IDX=%v, TERM=%v)", this.entries.Count, index, term));
+                }
+
+                // If we're truncating everything then just clear the entries.
+                if (index == this.startIndex)
+                {
+                    DebugTrace.DebugLine("log.truncate.clear");
+
+                    this.file.SetLength(0);
+
+                    this.file.Seek(0, SeekOrigin.Begin);
+                    // notify clients if this node is the previous leader
+                    foreach (var entry in this.entries)
+                    {
+                        if (entry.ev != null)
+                        {
+                            entry.ev.c = new Exception("command failed to be committed due to node failure");
+                        }
+                    }
+
+                    this.entries = new List<LogEntry>();
+                }
+                else
+                {
+                    // Do not truncate if the entry at index does not have the matching term.
+                    LogEntry entry = this.entries[index - this.startIndex - 1];
+
+                    if (this.entries.Count > 0 && entry.Term() != term)
+                    {
+
+                        DebugTrace.DebugLine("log.truncate.termMismatch");
+
+                        throw new Exception(string.Format("raft.Log: Entry at index does not have matching term (%v): (IDX=%v, TERM=%v)", entry.Term(), index, term));
+                    }
+
+                    // Otherwise truncate up to the desired entry.
+                    if (index < this.startIndex + this.entries.Count)
+                    {
+                        DebugTrace.DebugLine("log.truncate.finish");
+
+                        long position = this.entries[index - this.startIndex].Position;
+                        this.file.SetLength(position);
+
+                        this.file.Seek(position, SeekOrigin.Begin);
+
+                        // notify clients if this node is the previous leader
+                        for (int i = index - this.startIndex; i < this.entries.Count; i++)
+                        {
+                            entry = this.entries[i];
+
+                            if (entry.ev != null)
+                            {
+                                entry.ev.c = new Exception("command failed to be committed due to node failure");
+                            }
+                        }
+                        List<LogEntry> newEntries = new List<LogEntry>();
+                        for (int i = 0; i < index - this.startIndex; i++)
+                        {
+                            newEntries.Add(this.entries[i]);
+                        }
+                        this.entries = newEntries;
+                    }
+                }
+            }
+        }
+
+
+        //--------------------------------------
+        // Append
+        //--------------------------------------
+        // Appends a series of entries to the log.
+        public void appendEntries(List<protobuf.LogEntry> entries)
+        {
+            lock (mutex)
+            {
+                long startPosition = this.file.Seek(0, SeekOrigin.Current);
+
+                foreach (var e in entries)
+                {
+                    LogEntry logEntry = new LogEntry()
+                    {
+                        log = this,
+                        Position = startPosition,
+                        pb = e
+                    };
+
+                    long size = this.writeEntry(logEntry, this.file);
+
+                    startPosition += size;
+                }
+
+                this.file.Flush();
+            }
+        }
+
+        // Writes a single log entry to the end of the log.
+        public void appendEntry(LogEntry entry)
+        {
+            lock (mutex)
+            {
+                if (this.file == null)
+                {
+                    throw new Exception("raft.Log: Log is not open");
+                }
+
+                // Make sure the term and index are greater than the previous.
+                if (this.entries.Count > 0)
+                {
+                    LogEntry lastEntry = this.entries[this.entries.Count - 1];
+
+                    if (entry.Term() < lastEntry.Term())
+                    {
+                        throw new Exception(string.Format("raft.Log: Cannot append entry with earlier term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
+
+                    }
+                    else if (entry.Term() == lastEntry.Term() && entry.Index() <= lastEntry.Index())
+                    {
+                        throw new Exception(string.Format("raft.Log: Cannot append entry with earlier index in the same term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
+
+                    }
+                }
+
+                long position = this.file.Seek(0, SeekOrigin.Current);
+
+                entry.Position = position;
+
+                // Write to storage.
+                entry.Encode(this.file);
+
+                // Append to entries list if stored on disk.
+                this.entries.Add(entry);
+            }
+        }
+
+        // appendEntry with Buffered io
+        public long writeEntry(LogEntry entry, Stream w)
+        {
+            if (this.file == null)
+            {
+                throw new Exception("raft.Log: Log is not open");
+            }
+
+            // Make sure the term and index are greater than the previous.
+            if (this.entries.Count > 0)
+            {
+
+                LogEntry lastEntry = this.entries[this.entries.Count - 1];
+                if (entry.Term() < lastEntry.Term())
+                {
+                    throw new Exception(string.Format("raft.Log: Cannot append entry with earlier term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
+
+                }
+                else if (entry.Term() == lastEntry.Term() && entry.Index() <= lastEntry.Index())
+                {
+                    throw new Exception(string.Format("raft.Log: Cannot append entry with earlier index in the same term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
+
+                }
+            }
+
+            // Write to storage.
+            int size = entry.Encode(w);
+            // Append to entries list if stored on disk.
+            this.entries.Add(entry);
+
+            return (long)size;
+        }
+
+        //--------------------------------------
+        // Log compaction
+        //--------------------------------------
+
+        // compact the log before index (including index)
+        public void compact(int index, int term)
+        {
+            List<LogEntry> entries = new List<LogEntry>();
+            lock (mutex)
+            {
+
+
+                if (index == 0)
+                {
+                    return;
+
+                }
+                // nothing to compaction
+                // the index may be greater than the current index if
+                // we just recovery from on snapshot
+                if (index >= this.internalCurrentIndex())
+                {
+
+                    entries = new List<LogEntry>();
+                }
+                else
+                {
+                    // get all log entries after index
+                    for (int i = index - this.startIndex; i < this.entries.Count; i++)
+                    {
+                        entries.Add(this.entries[i]);
+                    }
+                }
+
+                // create a new log file and add all the entries
+                string new_file_path = this.path + ".new";
+                using (FileStream file = new FileStream(new_file_path, FileMode.OpenOrCreate, FileAccess.ReadWrite))
+                {
+                    foreach (var entry in entries)
+                    {
+                        long position = this.file.Seek(0, SeekOrigin.Current);
+                        entry.Position = position;
+                        entry.Encode(file);
+                    }
+                }
+
+                this.file.Close();
+                File.Replace(new_file_path, this.path, this.path + ".bak");
+                File.Delete(new_file_path);
+
+                this.file = File.Open(this.path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+
+                // compaction the in memory log
+                this.entries = entries;
+                this.startIndex = index;
+                this.startTerm = term;
+            }
+        }
 
     }
 }

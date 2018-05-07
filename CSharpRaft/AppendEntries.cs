@@ -4,21 +4,20 @@ using System.IO;
 
 namespace CSharpRaft
 {
-
     // The request sent to a server to append entries to the log.
     public class AppendEntriesRequest
     {
-        public int Term;
+        public int Term { get; set; }
 
-        public int PrevLogIndex;
+        public int PrevLogIndex { get; set; }
 
-        public int PrevLogTerm;
+        public int PrevLogTerm { get; set; }
 
-        public int CommitIndex;
+        public int CommitIndex { get; set; }
 
-        public string LeaderName;
+        public string LeaderName { get; set; }
 
-        public List<protobuf.LogEntry> Entries;
+        public List<protobuf.LogEntry> Entries { get; set; }
 
         // Creates a new AppendEntries request.
         public AppendEntriesRequest(int term, int prevLogIndex, int prevLogTerm,
@@ -37,8 +36,7 @@ namespace CSharpRaft
             this.LeaderName = leaderName;
             this.Entries = pbEntries;
         }
-
-
+        
         // Encodes the AppendEntriesRequest to a buffer. Returns the number of bytes
         // written and any error that may have occurred.
         public void Encode(Stream stream)
@@ -52,6 +50,7 @@ namespace CSharpRaft
                 LeaderName = this.LeaderName,
                 Entries = this.Entries,
             };
+
             Serializer.Serialize<protobuf.AppendEntriesRequest>(stream, pb);
         }
 
@@ -77,7 +76,6 @@ namespace CSharpRaft
     // The response returned from a server appending entries to the log.
     public class AppendEntriesResponse
     {
-
         internal protobuf.AppendEntriesResponse pb;
 
         internal string peer;

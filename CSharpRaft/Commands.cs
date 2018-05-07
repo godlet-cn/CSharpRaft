@@ -12,6 +12,10 @@ namespace CSharpRaft
         static Commands()
         {
             commandTypes = new Dictionary<string, Command>();
+
+            Commands.RegisterCommand(new NOPCommand());
+            Commands.RegisterCommand(new DefaultJoinCommand());
+            Commands.RegisterCommand(new DefaultLeaveCommand());
         }
 
         // Creates a new instance of a command by name.
