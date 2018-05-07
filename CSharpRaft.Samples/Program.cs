@@ -15,7 +15,6 @@ namespace CSharpRaft.Samples
             Server server = new Server(serverName, path, new HttpTransporter(), new DefaultStateMachine(),null,"");
 
             server.Start();
-
         }
     }
 }

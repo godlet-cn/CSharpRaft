@@ -182,18 +182,17 @@ namespace CSharpRaft
         public int LastIndex;
         public int LastTerm;
 
-        public SnapshotRequest() {
+        public SnapshotRequest()
+        {
 
         }
 
         // Creates a new Snapshot request.
         public SnapshotRequest(string leaderName, Snapshot snapshot)
         {
-
             LeaderName = leaderName;
             LastIndex = snapshot.LastIndex;
             LastTerm = snapshot.LastTerm;
-
         }
 
         // Encodes the SnapshotRequest to a buffer. Returns the number of bytes

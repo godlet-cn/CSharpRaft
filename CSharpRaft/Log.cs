@@ -251,7 +251,7 @@ namespace CSharpRaft
                 // Return an error if the index doesn't exist.
                 if (index > (this.entries.Count) + this.startIndex)
                 {
-                    throw new Exception(string.Format("raft: Index is beyond end of log: %d %d", this.entries.Count, index));
+                    throw new Exception(string.Format("raft: Index is beyond end of log: {0} {1}", this.entries.Count, index));
                 }
 
                 // If we're going from the beginning of the log then return the whole log.
@@ -335,11 +335,12 @@ namespace CSharpRaft
                 {
                     index = this.startIndex;
                     term = this.startTerm;
+
+                    return;
                 }
 
                 // Return the last index & term
                 LogEntry entry = this.entries[this.entries.Count - 1];
-
                 index = entry.Index();
                 term = entry.Term();
             }
@@ -453,7 +454,7 @@ namespace CSharpRaft
                 if (index < this.commitIndex)
                 {
                     DebugTrace.DebugLine("log.truncate.before");
-                    throw new Exception(string.Format("raft.Log: Index is already committed (%v): (IDX=%v, TERM=%v)", this.commitIndex, index, term));
+                    throw new Exception(string.Format("raft.Log: Index is already committed ({0}): (IDX={1}, TERM={2})", this.commitIndex, index, term));
                 }
 
                 // Do not truncate past end of entries.
@@ -461,7 +462,7 @@ namespace CSharpRaft
                 {
                     DebugTrace.DebugLine("log.truncate.after");
 
-                    throw new Exception(string.Format("raft.Log: Entry index does not exist (MAX=%v): (IDX=%v, TERM=%v)", this.entries.Count, index, term));
+                    throw new Exception(string.Format("raft.Log: Entry index does not exist (MAX={0}): (IDX={1}, TERM={2})", this.entries.Count, index, term));
                 }
 
                 // If we're truncating everything then just clear the entries.
@@ -493,7 +494,7 @@ namespace CSharpRaft
 
                         DebugTrace.DebugLine("log.truncate.termMismatch");
 
-                        throw new Exception(string.Format("raft.Log: Entry at index does not have matching term (%v): (IDX=%v, TERM=%v)", entry.Term(), index, term));
+                        throw new Exception(string.Format("raft.Log: Entry at index does not have matching term ({0}): (IDX={1}, TERM={2})", entry.Term(), index, term));
                     }
 
                     // Otherwise truncate up to the desired entry.
@@ -526,7 +527,6 @@ namespace CSharpRaft
                 }
             }
         }
-
 
         //--------------------------------------
         // Append
@@ -573,13 +573,11 @@ namespace CSharpRaft
 
                     if (entry.Term() < lastEntry.Term())
                     {
-                        throw new Exception(string.Format("raft.Log: Cannot append entry with earlier term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
-
+                        throw new Exception(string.Format("raft.Log: Cannot append entry with earlier term ({0}:{1} <= {2}:{3})", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
                     }
                     else if (entry.Term() == lastEntry.Term() && entry.Index() <= lastEntry.Index())
                     {
-                        throw new Exception(string.Format("raft.Log: Cannot append entry with earlier index in the same term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
-
+                        throw new Exception(string.Format("raft.Log: Cannot append entry with earlier index in the same term ({0}:{1} <= {2}:{3})", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
                     }
                 }
 
@@ -610,13 +608,11 @@ namespace CSharpRaft
                 LogEntry lastEntry = this.entries[this.entries.Count - 1];
                 if (entry.Term() < lastEntry.Term())
                 {
-                    throw new Exception(string.Format("raft.Log: Cannot append entry with earlier term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
-
+                    throw new Exception(string.Format("raft.Log: Cannot append entry with earlier term ({0}:{1} <= {2}:{3})", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
                 }
                 else if (entry.Term() == lastEntry.Term() && entry.Index() <= lastEntry.Index())
                 {
-                    throw new Exception(string.Format("raft.Log: Cannot append entry with earlier index in the same term (%x:%x <= %x:%x)", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
-
+                    throw new Exception(string.Format("raft.Log: Cannot append entry with earlier index in the same term ({0}:{1} <= {2}:{3})", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
                 }
             }
 
@@ -638,19 +634,15 @@ namespace CSharpRaft
             List<LogEntry> entries = new List<LogEntry>();
             lock (mutex)
             {
-
-
                 if (index == 0)
                 {
                     return;
-
                 }
                 // nothing to compaction
                 // the index may be greater than the current index if
                 // we just recovery from on snapshot
                 if (index >= this.internalCurrentIndex())
                 {
-
                     entries = new List<LogEntry>();
                 }
                 else

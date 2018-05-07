@@ -216,17 +216,14 @@ namespace CSharpRaft
             int prevLogTerm;
 
             this.server.log.getEntriesAfter(prevLogIndex, this.server.maxLogEntriesPerRequest, out entries, out prevLogTerm);
-
-
-            if (entries != null)
+            
+            if (entries!= null)
             {
                 this.sendAppendEntriesRequest(new AppendEntriesRequest(term, prevLogIndex, prevLogTerm, this.server.log.CommitIndex(), this.server.name, entries));
-
             }
             else
             {
                 this.sendSnapshotRequest(new SnapshotRequest(this.server.name, this.server.snapshot));
-
             }
         }
 
