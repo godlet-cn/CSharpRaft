@@ -12,7 +12,7 @@ namespace CSharpRaft.Samples
             string serverName = "test";
             string path = Path.Combine(Path.GetTempPath(), serverName);
 
-            Server server = new Server(serverName, path, new HttpTransporter(), new DefaultStateMachine(),null,"");
+            Server server = new Server(serverName, path, new HttpTransporter(), new DefaultStateMachine(),new KeyValueDB(),"");
             
             server.Start();
 

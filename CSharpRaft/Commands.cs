@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace CSharpRaft
 {
@@ -18,8 +21,13 @@ namespace CSharpRaft
             Commands.RegisterCommand(new LeaveCommand());
         }
 
-        // Creates a new instance of a command by name.
-        public static Command newCommand(string name, byte[] data)
+        /// <summary>
+        /// Creates a new instance of a command by name and serialized bytes data
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static Command NewCommand(string name, byte[] data)
         {
             // Find the registered command.
             Command command = commandTypes[name];
@@ -28,17 +36,31 @@ namespace CSharpRaft
                 throw new System.Exception("raft.Command: Unregistered command type:" + name);
 
             }
-            Command copy = Clone(command);
 
-            return copy;
+            var copy = System.Activator.CreateInstance(command.GetType());
+            if (command is CommandEncoder)
+            {
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    ms.Write(data, 0, data.Length);
+
+                    (copy as CommandEncoder).Decode(ms);
+                }    
+            }
+            else
+            {
+                string strJson = UTF8Encoding.UTF8.GetString(data);
+
+                copy = JsonConvert.DeserializeObject(strJson, command.GetType());
+            }
+            return copy as Command;
         }
 
-        private static Command Clone(Command command)
-        {
-            return command;
-        }
 
-        // Registers a command by storing a reference to an instance of it.
+        /// <summary>
+        /// Registers a command by storing a reference to an instance of it.
+        /// </summary>
+        /// <param name="command"></param>
         public static void RegisterCommand(Command command)
         {
             if (command == null)

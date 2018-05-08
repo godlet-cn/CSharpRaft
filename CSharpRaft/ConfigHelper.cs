@@ -16,7 +16,7 @@ namespace CSharpRaft
             List<Peer> peers = new List<Peer>();
             foreach (var peerItem in server.GetPeers())
             {
-                peers.Add(peerItem.Value.Clone());
+                peers.Add(peerItem.Value);
             }
 
             Config conf = new Config()
@@ -24,12 +24,13 @@ namespace CSharpRaft
                 CommitIndex = server.log.CommitIndex,
                 Peers = peers
             };
+
             string strConf = JsonConvert.SerializeObject(conf);
 
-            string confPath = System.IO.Path.Combine(server.Path, "conf");
+            string confPath = Path.Combine(server.Path, "conf");
             server.debugLine("writeConf.write ", confPath);
 
-            string tmpConfPath = System.IO.Path.Combine(server.Path, "conf.tmp");
+            string tmpConfPath = Path.Combine(server.Path, "conf.tmp");
             using (StreamWriter stream = new StreamWriter(tmpConfPath, false, Encoding.UTF8))
             {
                 stream.Write(strConf);

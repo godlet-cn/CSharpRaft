@@ -16,18 +16,20 @@ namespace CSharpRaft
         internal bool stopChan;
 
         internal int heartbeatInterval;
-
-
+        
         private readonly object mutex = new object();
 
-        //------------------------------------------------------------------------------
-        //
-        // Constructor
-        //
-        //------------------------------------------------------------------------------
+        #region Constructor
+
         public Peer()
         {
-           
+
+        }
+
+        public Peer(string name, string connectionString)
+        {
+            this.Name = name;
+            this.ConnectionString = connectionString;
         }
 
         public Peer(Server server, string name, string connectionString, int heartbeatInterval)
@@ -38,11 +40,9 @@ namespace CSharpRaft
             this.heartbeatInterval = heartbeatInterval;
         }
 
-        //------------------------------------------------------------------------------
-        //
-        // Accessors
-        //
-        //------------------------------------------------------------------------------
+        #endregion
+
+        #region Properties
 
         // Sets the heartbeat timeout.
         public void setHeartbeatInterval(int duration)
@@ -96,15 +96,9 @@ namespace CSharpRaft
             }
         }
 
-        //------------------------------------------------------------------------------
-        //
-        // Methods
-        //
-        //------------------------------------------------------------------------------
+        #endregion
 
-        //--------------------------------------
-        // Copying
-        //--------------------------------------
+        #region Methods
 
         // Clones the state of the peer. The clone is not attached to a server and
         // the heartbeat timer will not exist.
@@ -112,13 +106,10 @@ namespace CSharpRaft
         {
             lock (mutex)
             {
-                Peer peer = new Peer()
-                {
-                    Name = this.Name,
-                    ConnectionString = this.ConnectionString,
-                    prevLogIndex = this.prevLogIndex,
-                    lastActivity = this.lastActivity
-                };
+                Peer peer = new Peer(this.Name, this.ConnectionString);
+                peer.prevLogIndex = this.prevLogIndex;
+                peer.lastActivity = this.lastActivity;
+
                 return peer;
             }
         }
@@ -128,7 +119,7 @@ namespace CSharpRaft
         //--------------------------------------
 
         // Starts the peer heartbeat.
-        public void startHeartbeat()
+        internal void startHeartbeat()
         {
             //this.stopChan = make(chan bool);
 
@@ -149,18 +140,14 @@ namespace CSharpRaft
         }
 
         // Stops the peer heartbeat.
-        public void stopHeartbeat(bool flush)
+        internal void stopHeartbeat(bool flush)
         {
             this.LastActivity = DateTime.Now;
             this.stopChan = flush;
         }
 
-        //--------------------------------------
-        // Heartbeat
-        //--------------------------------------
-
         // Listens to the heartbeat timeout and flushes an AppendEntries RPC.
-        public void heartbeat(bool c)
+        private void heartbeat(bool c)
         {
             //          stopChan:= this.stopChan;
 
@@ -207,7 +194,7 @@ namespace CSharpRaft
             //}
         }
 
-        public void flush()
+        private void flush()
         {
             DebugTrace.Debug("peer.heartbeat.flush: ", this.Name);
 
@@ -235,7 +222,7 @@ namespace CSharpRaft
         //--------------------------------------
 
         // Sends an AppendEntries request to the peer through the transport.
-        public void sendAppendEntriesRequest(AppendEntriesRequest req)
+        private void sendAppendEntriesRequest(AppendEntriesRequest req)
         {
             DebugTrace.Trace("peer.append.send: {0}->{1} [prevLog:{2} length: {3}]\n",
                 this.server.Name, this.Name, req.PrevLogIndex, req.Entries.Count);
@@ -326,7 +313,7 @@ namespace CSharpRaft
         }
 
         // Sends an Snapshot request to the peer through the transport.
-        public void sendSnapshotRequest(SnapshotRequest req)
+        private void sendSnapshotRequest(SnapshotRequest req)
         {
             DebugTrace.Debug("peer.snap.send: ", this.Name);
 
@@ -355,7 +342,7 @@ namespace CSharpRaft
         }
 
         // Sends an Snapshot Recovery request to the peer through the transport.
-        public void sendSnapshotRecoveryRequest()
+        private void sendSnapshotRecoveryRequest()
         {
             SnapshotRecoveryRequest req = new SnapshotRecoveryRequest(this.server.Name, this.server.GetSnapshot());
 
@@ -387,7 +374,7 @@ namespace CSharpRaft
         // Vote Requests
         //--------------------------------------
         // send VoteRequest Request
-        public void sendVoteRequest(RequestVoteRequest req, RequestVoteResponse c)
+        private void sendVoteRequest(RequestVoteRequest req, RequestVoteResponse c)
         {
             DebugTrace.Debug("peer.vote: ", this.server.Name, "->", this.Name);
 
@@ -409,5 +396,7 @@ namespace CSharpRaft
                 DebugTrace.Debug("peer.vote.failed: ", this.server.Name, "<-", this.Name);
             }
         }
+        
+        #endregion
     }
 }

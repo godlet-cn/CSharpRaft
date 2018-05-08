@@ -112,8 +112,8 @@ namespace CSharpRaft
         // any error that occurs.
         public void Decode(Stream reader)
         {
-            byte[] lenData = new byte[8];
-            reader.Read(lenData, 0, 8);
+            byte[] lenData = new byte[4];
+            reader.Read(lenData, 0,4);
             int len = BitConverter.ToInt32(lenData, 0);
 
             byte[] data = new byte[len];

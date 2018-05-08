@@ -1,33 +1,27 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CSharpRaft
 {
+    public enum LogLevel
+    {
+        NONE = 0,
+        DEBUG = 1,
+        TRACE = 2
+    }
+
     public static class DebugTrace
     {
-        public const int DEBUG = 1;
-        public const int TRACE = 2;
+        public static TextWriter LogWriter;
+
+        public static LogLevel Level;
 
         static DebugTrace()
         {
-            LogLevel = 1;
+            Level = LogLevel.TRACE;
 
             LogWriter = Console.Out;
         }
-
-        public static TextWriter LogWriter;
-
-        public static int LogLevel;
-
-        //------------------------------------------------------------------------------
-        //
-        // Functions
-        //
-        //------------------------------------------------------------------------------
 
         //--------------------------------------
         // Warnings
@@ -63,9 +57,9 @@ namespace CSharpRaft
         // are handled in the manner of fmt.Print.
         public static void Debug(params object[] objs)
         {
-            if (LogLevel >= DEBUG)
+            if (Level >= LogLevel.DEBUG)
             {
-                LogWriter.WriteLine(string.Join(" ", objs));
+                LogWriter.Write(string.Join(" ", objs));
             }
         }
 
@@ -73,9 +67,9 @@ namespace CSharpRaft
         // are handled in the manner of fmt.Printf.
         public static void Debug(string format, params object[] objs)
         {
-            if (LogLevel >= DEBUG)
+            if (Level >= LogLevel.DEBUG)
             {
-                LogWriter.WriteLine(format, objs);
+                LogWriter.Write(format, objs);
             }
         }
 
@@ -83,7 +77,7 @@ namespace CSharpRaft
         // are handled in the manner of fmt.Println.
         public static void DebugLine(params object[] objs)
         {
-            if (LogLevel >= DEBUG)
+            if (Level >= LogLevel.DEBUG)
             {
                 LogWriter.WriteLine(string.Join(" ", objs));
             }
@@ -97,9 +91,9 @@ namespace CSharpRaft
         // are handled in the manner of fmt.Print.
         public static void Trace(params object[] objs)
         {
-            if (LogLevel >= TRACE)
+            if (Level >= LogLevel.TRACE)
             {
-                LogWriter.WriteLine(string.Join(" ", objs));
+                LogWriter.Write(string.Join(" ", objs));
             }
         }
 
@@ -107,9 +101,9 @@ namespace CSharpRaft
         // are handled in the manner of fmt.Printf.
         public static void Trace(string format, params object[] objs)
         {
-            if (LogLevel >= TRACE)
+            if (Level >= LogLevel.TRACE)
             {
-                LogWriter.WriteLine(format, objs);
+                LogWriter.Write(format, objs);
             }
         }
 
@@ -117,7 +111,7 @@ namespace CSharpRaft
         // are handled in the manner of debugln.
         public static void TraceLine(params object[] objs)
         {
-            if (LogLevel >= TRACE)
+            if (Level >= LogLevel.TRACE)
             {
                 LogWriter.WriteLine(string.Join(" ", objs));
             }

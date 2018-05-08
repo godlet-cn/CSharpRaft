@@ -4,14 +4,6 @@ using System.IO;
 
 namespace CSharpRaft
 {
-    // The results of the applying a log entry.
-    public class logResult
-    {
-        object returnValue;
-
-        Exception err;
-    }
-
     public class Log
     {
         public Func<LogEntry, Command, object> ApplyFunc;
@@ -24,25 +16,21 @@ namespace CSharpRaft
 
         private int commitIndex;
 
-        private readonly object mutex = new object();
-
-        // the index before the first entry in the Log entries
+        // The index before the first entry in the Log entries
         internal int startIndex;
 
         internal int startTerm;
 
-        internal bool initialized;
+        internal bool initialized = false;
+
+        private readonly object mutex = new object();
 
         public Log()
         {
             entries = new List<LogEntry>();
         }
 
-        //------------------------------------------------------------------------------
-        //
-        // Accessors
-        //
-        //------------------------------------------------------------------------------
+        #region Properties
 
         //--------------------------------------
         // Log Indices
@@ -107,7 +95,6 @@ namespace CSharpRaft
         {
             get
             {
-
                 lock (mutex)
                 {
                     if (this.entries.Count > 0)
@@ -116,7 +103,6 @@ namespace CSharpRaft
                         if (entry != null)
                         {
                             return entry.CommandName;
-
                         }
                     }
                 }
@@ -127,7 +113,6 @@ namespace CSharpRaft
         //--------------------------------------
         // Log Terms
         //--------------------------------------
-
         // The current term in the log.
         internal int currentTerm
         {
@@ -138,20 +123,16 @@ namespace CSharpRaft
                     if (this.entries.Count == 0)
                     {
                         return this.startTerm;
-
                     }
                     return this.entries[this.entries.Count - 1].Term;
                 }
             }
         }
 
+        #endregion
 
-        //------------------------------------------------------------------------------
-        //
-        // Methods
-        //
-        //------------------------------------------------------------------------------
-
+        #region Methods
+        
         //--------------------------------------
         // State
         //--------------------------------------
@@ -183,7 +164,7 @@ namespace CSharpRaft
 
                     if (entry.Index <= this.commitIndex)
                     {
-                        Command command = Commands.newCommand(entry.CommandName, entry.Command);
+                        Command command = Commands.NewCommand(entry.CommandName, entry.Command);
                         this.ApplyFunc(entry, command);
                     }
                     DebugTrace.DebugLine("open.log.append log index ", entry.Index);
@@ -313,7 +294,7 @@ namespace CSharpRaft
         //--------------------------------------
 
         // Retrieves the last index and term that has been committed to the log.
-        internal void commitInfo(out int index, out int term)
+        internal void getCommitInfo(out int index, out int term)
         {
             lock (mutex)
             {
@@ -342,7 +323,7 @@ namespace CSharpRaft
         }
 
         // Retrieves the last index and term that has been appended to the log.
-        internal void lastInfo(out int index, out int term)
+        internal void getLastInfo(out int index, out int term)
         {
             lock (mutex)
             {
@@ -351,7 +332,6 @@ namespace CSharpRaft
                 {
                     index = this.startIndex;
                     term = this.startTerm;
-
                     return;
                 }
 
@@ -371,6 +351,7 @@ namespace CSharpRaft
                 {
                     this.commitIndex = index;
                 }
+
                 DebugTrace.DebugLine("update.commit.index ", index);
             }
         }
@@ -420,7 +401,7 @@ namespace CSharpRaft
                     this.commitIndex = entry.Index;
 
                     // Decode the command.
-                    Command command = Commands.newCommand(entry.CommandName, entry.Command);
+                    Command command = Commands.NewCommand(entry.CommandName, entry.Command);
 
                     // Apply the changes to the state machine and store the error code.
                     object returnValue = this.ApplyFunc(entry, command);
@@ -589,6 +570,8 @@ namespace CSharpRaft
 
                 // Append to entries list if stored on disk.
                 this.entries.Add(entry);
+
+                this.file.Flush();
             }
         }
 
@@ -678,5 +661,6 @@ namespace CSharpRaft
             }
         }
 
+        #endregion
     }
 }

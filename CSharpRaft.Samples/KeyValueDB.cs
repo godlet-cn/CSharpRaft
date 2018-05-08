@@ -36,6 +36,10 @@ namespace CSharpRaft.Samples
         // Sets the value for a given key.
         public void Put(string key, string value)
         {
+            if (string.IsNullOrEmpty(key))
+            {
+                throw new Exception("Key can not be null");
+            }
             if (!this.data.ContainsKey(key))
             {
                 this.data[key] = value;

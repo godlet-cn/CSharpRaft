@@ -118,16 +118,11 @@ namespace CSharpRaft
                 this.LastIndex = (int)pb.LastIndex;
                 this.LastTerm = (int)pb.LastTerm;
                 this.State = pb.State;
-
-
+                
                 this.Peers = new List<Peer>();
                 foreach (var peer in pb.Peers)
                 {
-                    this.Peers.Add(new Peer()
-                    {
-                        Name = peer.Name,
-                        ConnectionString = peer.ConnectionString
-                    });
+                    this.Peers.Add(new Peer(peer.Name, peer.ConnectionString));
                 }
             }
         }

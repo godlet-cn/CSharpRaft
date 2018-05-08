@@ -7,11 +7,9 @@ namespace CSharpRaft
 {
     public class Server : IServer
     {
-        private readonly object mutex = new object();
-
         internal Log log;
 
-        private bool stopped;
+        private bool isStopped;
 
         private Dictionary<string, Peer> peers;
 
@@ -31,6 +29,8 @@ namespace CSharpRaft
         internal int maxLogEntriesPerRequest;
 
         private string connectionString;
+
+        private readonly object mutex = new object();
 
         #region Constructor
 
@@ -463,7 +463,7 @@ namespace CSharpRaft
             }
             catch (Exception ex)
             {
-                DebugTrace.DebugLine("raft: Snapshot directory doesn't exist");
+                this.debugLine("raft: Snapshot directory doesn't exist");
                 Console.Error.WriteLine(string.Format("raft: Initialization error: {0}", ex));
                 return;
             }
@@ -474,7 +474,7 @@ namespace CSharpRaft
             }
             catch (Exception err)
             {
-                DebugTrace.DebugLine("raft: Conf file error: ", err);
+                this.debugLine("raft: Conf file error: ", err);
                 Console.Error.WriteLine(string.Format("raft: Initialization error: {0}", err));
                 return;
             }
@@ -486,14 +486,14 @@ namespace CSharpRaft
             }
             catch (Exception err)
             {
-                DebugTrace.DebugLine("raft: Log error: ", err);
+                this.debugLine("raft: Log error: ", err);
                 Console.Error.WriteLine(string.Format("raft: Initialization error: {0}", err));
                 return;
             }
 
             // Update the term to the last term in the log.
             int index, curTerm;
-            this.log.lastInfo(out index, out curTerm);
+            this.log.getLastInfo(out index, out curTerm);
             this.currentTerm = curTerm;
 
             this.state = ServerState.Initialized;
@@ -521,17 +521,17 @@ namespace CSharpRaft
             // to set itself promotable
             if (!this.promotable())
             {
-                DebugTrace.DebugLine("start as a new raft server");
+                this.debugLine("start as a new raft server");
 
                 // If log entries exist then allow promotion to candidate
                 // if no AEs received.
             }
             else
             {
-                DebugTrace.DebugLine("start from previous saved state");
+                this.debugLine("start from previous saved state");
             }
 
-            DebugTrace.DebugLine(this.State);
+            this.debugLine(this.State);
 
             Task.Factory.StartNew(() =>
             {
@@ -547,7 +547,7 @@ namespace CSharpRaft
                 return;
             }
 
-            this.stopped = true;
+            this.isStopped = true;
 
             this.log.close();
 
@@ -594,18 +594,13 @@ namespace CSharpRaft
                 this.leader = leaderName;
                 this.votedFor = "";
             }
+
             // Dispatch change events.
-            if (TermChanged != null)
-            {
-                TermChanged(this, new RaftEventArgs(this.currentTerm, prevTerm));
-            }
+            this.DispatchTermChangeEvent(new RaftEventArgs(this.currentTerm, prevTerm));
 
             if (prevLeader != this.leader)
             {
-                if (LeaderChanged != null)
-                {
-                    LeaderChanged(this, new RaftEventArgs(this.leader, prevLeader));
-                }
+                this.DispatchLeaderChangeEvent(new RaftEventArgs(this.leader, prevLeader));
             }
         }
 
@@ -632,7 +627,7 @@ namespace CSharpRaft
 
             while (state != ServerState.Stopped)
             {
-                DebugTrace.DebugLine("server.loop.run ", state);
+                this.debugLine("server.loop.run ", state);
                 switch (state)
                 {
                     case ServerState.Follower:
@@ -651,36 +646,7 @@ namespace CSharpRaft
                 state = this.State;
             }
 
-            DebugTrace.DebugLine("server.loop.end");
-        }
-
-        // Sends an event to the event loop to be processed. The function will wait
-        // until the event is actually processed before returning.
-        private object send(object value)
-        {
-            if (!this.IsRunning)
-            {
-                throw Constants.StopError;
-            }
-
-            //event = &ev { target: value, c: make(chan error, 1)}
-            //select
-            //{
-            //	case this.c < - event:
-            //	case < -this.stopped:
-            //		return null, StopError
-
-            //}
-            //select
-            //{
-            //	case < -this.stopped:
-            //		return null, StopError
-            //	case err:= < -event.c:
-            //    return event.returnValue, err
-
-            //}
-
-            return null;
+            this.debugLine("server.loop.end");
         }
 
         internal void sendAsync(object value)
@@ -729,7 +695,7 @@ namespace CSharpRaft
 
             while (this.State == ServerState.Follower)
             {
-                if (this.stopped)
+                if (this.isStopped)
                 {
                     this.setState(ServerState.Stopped);
                     return;
@@ -806,7 +772,7 @@ namespace CSharpRaft
             }
 
             int lastLogIndex, lastLogTerm;
-            this.log.lastInfo(out lastLogIndex, out lastLogTerm);
+            this.log.getLastInfo(out lastLogIndex, out lastLogTerm);
 
 
             //  doVote:= true
@@ -857,7 +823,7 @@ namespace CSharpRaft
                 //          // If we received enough votes then stop waiting for more votes.
                 //          // And return from the candidate loop
                 //          if votesGranted == this.QuorumSize() {
-                //              DebugTrace.DebugLine("server.candidate.recv.enough.votes")
+                //              this.debugLine("server.candidate.recv.enough.votes")
 
                 //          this.setState(Leader)
 
@@ -874,7 +840,7 @@ namespace CSharpRaft
 
                 //case resp:= < -respChan:
                 //	if success := this.processVoteResponse(resp); success {
-                //                  DebugTrace.DebugLine("server.candidate.vote.granted: ", votesGranted)
+                //                  this.debugLine("server.candidate.vote.granted: ", votesGranted)
 
                 //              votesGranted++
 
@@ -906,10 +872,10 @@ namespace CSharpRaft
         private void leaderLoop()
         {
             int logIndex, logTerm;
-            this.log.lastInfo(out logIndex, out logTerm);
+            this.log.getLastInfo(out logIndex, out logTerm);
 
             // Update the peers prevLogIndex to leader's lastLogIndex and start heartbeat.
-            DebugTrace.DebugLine("leaderLoop.set.PrevIndex to ", logIndex);
+            this.debugLine("leaderLoop.set.PrevIndex to ", logIndex);
 
             foreach (var peerItem in this.peers)
             {
@@ -930,7 +896,7 @@ namespace CSharpRaft
             // Begin to collect response from followers
             while (this.State == ServerState.Leader)
             {
-                if (this.stopped)
+                if (this.isStopped)
                 {
                     // Stop all peers before stop
                     foreach (var peer in this.peers)
@@ -969,7 +935,7 @@ namespace CSharpRaft
         {
             while (this.State == ServerState.Snapshotting)
             {
-                if (this.stopped)
+                if (this.isStopped)
                 {
                     this.setState(ServerState.Stopped);
                     return;
@@ -1018,8 +984,9 @@ namespace CSharpRaft
                         //then immediately become leader and commit entry.
                         if (this.log.currentIndex == 0 && (command as JoinCommand).Name == this.Name)
                         {
-                            DebugTrace.DebugLine("selfjoin and promote to leader");
+                            this.debugLine("self join and promote to leader");
                             this.setState(ServerState.Leader);
+
                             return this.processCommand(command);
                         }
                         else
@@ -1040,7 +1007,7 @@ namespace CSharpRaft
         // Processes a command.
         private bool processCommand(Command command)
         {
-            DebugTrace.DebugLine("server.command.process");
+            this.debugLine("server.command.process:"+command.CommandName);
 
             try
             {
@@ -1056,13 +1023,13 @@ namespace CSharpRaft
 
                     this.log.setCommitIndex(commitIndex);
 
-                    DebugTrace.DebugLine("commit index ", commitIndex);
+                    this.debugLine("commit index ", commitIndex);
                 }
                 return true;
             }
             catch (Exception err)
             {
-                DebugTrace.DebugLine("server.command.log.entry.error:", err);
+                this.debugLine("server.command.log.entry.error:", err);
                 return false;
             }
         }
@@ -1085,7 +1052,7 @@ namespace CSharpRaft
 
             if (req.Term < this.currentTerm)
             {
-                DebugTrace.DebugLine("server.ae.error: stale term");
+                this.debugLine("server.ae.error: stale term");
 
                 return new AppendEntriesResponse(this.currentTerm, false, this.log.currentIndex, this.log.CommitIndex);
             }
@@ -1120,7 +1087,7 @@ namespace CSharpRaft
             }
             catch (Exception err)
             {
-                DebugTrace.DebugLine("server.ae.truncate.error: ", err);
+                this.debugLine("server.ae.truncate.error: ", err);
                 return new AppendEntriesResponse(this.currentTerm, false, this.log.currentIndex, this.log.CommitIndex);
             }
 
@@ -1131,7 +1098,7 @@ namespace CSharpRaft
             }
             catch (Exception err)
             {
-                DebugTrace.DebugLine("server.ae.append.error: ", err);
+                this.debugLine("server.ae.append.error: ", err);
                 return new AppendEntriesResponse(this.currentTerm, false, this.log.currentIndex, this.log.CommitIndex);
             }
 
@@ -1142,7 +1109,7 @@ namespace CSharpRaft
             }
             catch (Exception err)
             {
-                DebugTrace.DebugLine("server.ae.commit.error: ", err);
+                this.debugLine("server.ae.commit.error: ", err);
 
                 return new AppendEntriesResponse(this.currentTerm, false, this.log.currentIndex, this.log.CommitIndex);
             }
@@ -1203,7 +1170,7 @@ namespace CSharpRaft
                 // leader needs to do a fsync before committing log entries
                 this.log.sync();
                 this.log.setCommitIndex(commitIndex);
-                DebugTrace.DebugLine("commit index ", commitIndex);
+                this.debugLine("commit index ", commitIndex);
             }
         }
 
@@ -1221,12 +1188,12 @@ namespace CSharpRaft
 
             if (resp.Term > this.currentTerm)
             {
-                DebugTrace.DebugLine("server.candidate.vote.failed");
+                this.debugLine("server.candidate.vote.failed");
                 this.updateCurrentTerm(resp.Term, "");
             }
             else
             {
-                DebugTrace.DebugLine("server.candidate.vote: denied");
+                this.debugLine("server.candidate.vote: denied");
             }
             return true;
         }
@@ -1249,7 +1216,7 @@ namespace CSharpRaft
             // If the request is coming from an old term then reject it.
             if (req.Term < this.Term)
             {
-                DebugTrace.DebugLine("server.rv.deny.vote: cause stale term");
+                this.debugLine("server.rv.deny.vote: cause stale term");
 
                 return new RequestVoteResponse(this.currentTerm, false);
             }
@@ -1263,37 +1230,36 @@ namespace CSharpRaft
             }
             else if (this.votedFor != "" && this.votedFor != req.CandidateName)
             {
-                DebugTrace.DebugLine("server.deny.vote: cause duplicate vote: ", req.CandidateName,
+                this.debugLine("server.deny.vote: cause duplicate vote: ", req.CandidateName,
                     " already vote for ", this.votedFor);
                 return new RequestVoteResponse(this.currentTerm, false);
             }
 
             // If the candidate's log is not at least as up-to-date as our last log then don't vote.
             int lastIndex, lastTerm;
-            this.log.lastInfo(out lastIndex, out lastTerm);
+            this.log.getLastInfo(out lastIndex, out lastTerm);
 
             if (lastIndex > req.LastLogIndex || lastTerm > req.LastLogTerm)
             {
 
-                DebugTrace.DebugLine("server.deny.vote: cause out of date log: ", req.CandidateName,
+                this.debugLine("server.deny.vote: cause out of date log: ", req.CandidateName,
                         "Index :[", lastIndex, "]", " [", req.LastLogIndex, "]",
                         "Term :[", lastTerm, "]", " [", req.LastLogTerm, "]");
                 return new RequestVoteResponse(this.currentTerm, false);
             }
 
             // If we made it this far then cast a vote and reset our election time out.
-            DebugTrace.DebugLine("server.rv.vote: ", this.name, " votes for", req.CandidateName, "at term", req.Term);
+            this.debugLine("server.rv.vote: ", this.name, " votes for", req.CandidateName, "at term", req.Term);
 
             this.votedFor = req.CandidateName;
 
             return new RequestVoteResponse(this.currentTerm, true);
         }
 
-        //--------------------------------------
-        // Membership
-        //--------------------------------------
-
-        // Retrieves a copy of the peer data.
+        /// <summary>
+        /// Retrieves a copy of the peers in this server
+        /// </summary>
+        /// <returns></returns>
         public Dictionary<string, Peer> GetPeers()
         {
             lock (mutex)
@@ -1314,7 +1280,7 @@ namespace CSharpRaft
         /// <param name="connectiongString"></param>
         public void AddPeer(string name, string connectiongString)
         {
-            DebugTrace.DebugLine("server.peer.add: ", name, this.peers.Count);
+            this.debugLine("server.peer.add: ", name, this.peers.Count);
 
             // Do not allow peers to be added twice.
             if (this.peers.ContainsKey(name))
@@ -1335,16 +1301,16 @@ namespace CSharpRaft
                 this.peers[peer.Name] = peer;
 
                 this.DispatchAddPeerEvent(new RaftEventArgs(name, null));
-            }
 
-            // Write the configuration to file.
-            ConfigHelper.WriteConfig(this);
+                // Write the configuration to file.
+                ConfigHelper.WriteConfig(this);
+            }
         }
 
         // Removes a peer from the server.
         public void RemovePeer(string name)
         {
-            DebugTrace.DebugLine("server.peer.remove: ", name, this.peers.Count);
+            this.debugLine("server.peer.remove: ", name, this.peers.Count);
 
             // Skip the Peer if it has the same name as the Server
             if (name != this.Name)
@@ -1363,10 +1329,10 @@ namespace CSharpRaft
                 }
                 this.peers.Remove(name);
                 this.DispatchRemovePeerEvent(new RaftEventArgs(name, null));
-            }
 
-            // Write the configuration to file.
-            ConfigHelper.WriteConfig(this);
+                // Write the configuration to file.
+                ConfigHelper.WriteConfig(this);
+            }
         }
 
         //--------------------------------------
@@ -1388,11 +1354,11 @@ namespace CSharpRaft
 
             // TODO: acquire the lock and no more committed is allowed
             // This will be done after finishing refactoring heartbeat
-            DebugTrace.DebugLine("take.snapshot");
+            this.debugLine("take.snapshot");
 
 
             int lastIndex, lastTerm;
-            this.log.commitInfo(out lastIndex, out lastTerm);
+            this.log.getCommitInfo(out lastIndex, out lastTerm);
 
             // check if there is log has been committed since the last snapshot.
             if (lastIndex == this.log.startIndex)
@@ -1413,7 +1379,7 @@ namespace CSharpRaft
             {
                 peers.Add(peeritem.Value);
             }
-            peers.Add(new Peer { Name = this.Name, ConnectionString = this.connectionString });
+            peers.Add(new Peer(this.Name, this.connectionString));
 
             // Attach snapshot to pending snapshot and save it to disk.
             this.pendingSnapshot.Peers = peers;
@@ -1532,7 +1498,7 @@ namespace CSharpRaft
             var filenames = Directory.GetFiles(System.IO.Path.Combine(this.path, "snapshot"));
             if (filenames.Length == 0)
             {
-                DebugTrace.DebugLine("no.snapshot.to.load");
+                this.debugLine("no.snapshot.to.load");
                 return;
             }
 
@@ -1561,7 +1527,7 @@ namespace CSharpRaft
                         string byteChecksum = crc.CheckSum(ms);
                         if (!checksum.Equals(byteChecksum))
                         {
-                            DebugTrace.DebugLine(checksum, " ", byteChecksum);
+                            this.debugLine(checksum, " ", byteChecksum);
                             throw new Exception("bad snapshot file");
                         }
                     }
@@ -1579,7 +1545,7 @@ namespace CSharpRaft
             }
             catch (Exception err)
             {
-                DebugTrace.DebugLine("recovery.snapshot.error: ", err);
+                this.debugLine("recovery.snapshot.error: ", err);
             }
 
             // Recover cluster configuration.
@@ -1594,23 +1560,19 @@ namespace CSharpRaft
             this.log.updateCommitIndex(this.snapshot.LastIndex);
         }
 
-        #region Config File
-
         // Flushes commit index to the disk.
         // So when the raft server restarts, it will commit upto the flushed commitIndex.
         public void FlushCommitIndex()
         {
-            DebugTrace.DebugLine("server.conf.update");
+            this.debugLine("server.conf.update");
             // Write the configuration to file.
             ConfigHelper.WriteConfig(this);
         }
-        
-        #endregion
 
         #region Debugging
 
         // Get the state of the server for debugging
-        private string getState()
+        internal string getState()
         {
             lock (mutex)
             {
@@ -1620,19 +1582,19 @@ namespace CSharpRaft
 
         internal void debugLine(params object[] objs)
         {
-            if (DebugTrace.LogLevel > DebugTrace.DEBUG)
+            if (DebugTrace.Level > LogLevel.DEBUG)
             {
-                DebugTrace.Debug(string.Format("[{0} Term:{1}]", this.name, this.Term));
-                DebugTrace.Debug(objs);
+                DebugTrace.Debug(string.Format("[{0} Term:{1}]: ", this.name, this.Term));
+                DebugTrace.DebugLine(objs);
             }
         }
 
         internal void traceLine(params object[] objs)
         {
-            if (DebugTrace.LogLevel > DebugTrace.TRACE)
+            if (DebugTrace.Level > LogLevel.TRACE)
             {
-                DebugTrace.Trace(string.Format("[{0} Term:{1}]", this.name, this.Term));
-                DebugTrace.Trace(objs);
+                DebugTrace.Trace(string.Format("[{0} Term:{1}]: ", this.name, this.Term));
+                DebugTrace.DebugLine(objs);
             }
         }
 
