@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using CSharpRaft;
+
 namespace CSharpRaft.Test.Mocks
 {
     class TestStateMachine : StateMachine

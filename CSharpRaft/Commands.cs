@@ -14,8 +14,8 @@ namespace CSharpRaft
             commandTypes = new Dictionary<string, Command>();
 
             Commands.RegisterCommand(new NOPCommand());
-            Commands.RegisterCommand(new DefaultJoinCommand());
-            Commands.RegisterCommand(new DefaultLeaveCommand());
+            Commands.RegisterCommand(new JoinCommand());
+            Commands.RegisterCommand(new LeaveCommand());
         }
 
         // Creates a new instance of a command by name.

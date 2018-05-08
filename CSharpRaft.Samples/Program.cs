@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.IO;
 
 namespace CSharpRaft.Samples
@@ -10,11 +7,21 @@ namespace CSharpRaft.Samples
     {
         static void Main(string[] args)
         {
+            Commands.RegisterCommand(new WriteCommand());
+
             string serverName = "test";
             string path = Path.Combine(Path.GetTempPath(), serverName);
-            Server server = new Server(serverName, path, new HttpTransporter(), new DefaultStateMachine(),null,"");
 
+            Server server = new Server(serverName, path, new HttpTransporter(), new DefaultStateMachine(),null,"");
+            
             server.Start();
+
+            server.Do(new JoinCommand { Name = server.Name });
+            server.Do(new WriteCommand("foo", "bar"));
+
+            server.AddPeer("peer1","");
+            
+            Console.ReadKey();
         }
     }
 }

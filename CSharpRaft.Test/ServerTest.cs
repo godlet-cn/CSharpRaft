@@ -17,7 +17,7 @@ namespace CSharpRaft.Test
             Server server = TestServer.NewTestServer("1", new TestTransporter { });
 
             server.Start();
-            server.Do(new DefaultJoinCommand { Name = server.Name });
+            server.Do(new JoinCommand { Name = server.Name });
             
             var resp = server.RequestVote(new RequestVoteRequest(1, "foo", 1, 0));
             if (resp.Term != 1||!resp.VoteGranted)

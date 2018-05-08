@@ -1,4 +1,5 @@
 ﻿using CSharpRaft;
+
 namespace CSharpRaft.Test.Mocks
 {
     class Command2 : Command
@@ -13,7 +14,7 @@ namespace CSharpRaft.Test.Mocks
             }
         }
 
-        public object Apply(Server server)
+        public object Apply(IContext context)
         {
             return null;
         }

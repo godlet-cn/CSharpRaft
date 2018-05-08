@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 
 namespace CSharpRaft
@@ -11,14 +12,13 @@ namespace CSharpRaft
         public string ConnectionString { get; set; }
 
         internal Server server;
-
-
+        
         internal bool stopChan;
 
         internal int heartbeatInterval;
 
 
-        private object mutex;
+        private readonly object mutex = new object();
 
         //------------------------------------------------------------------------------
         //
@@ -27,7 +27,7 @@ namespace CSharpRaft
         //------------------------------------------------------------------------------
         public Peer()
         {
-
+           
         }
 
         public Peer(Server server, string name, string connectionString, int heartbeatInterval)
@@ -56,6 +56,7 @@ namespace CSharpRaft
 
         private int prevLogIndex;
         // Retrieves or sets the previous log index.
+        [JsonIgnore]
         public int PrevLogIndex
         {
             get
@@ -76,6 +77,7 @@ namespace CSharpRaft
 
         private DateTime lastActivity;
         // LastActivity returns the last time any response was received from the peer.
+        [JsonIgnore]
         public DateTime LastActivity
         {
             get

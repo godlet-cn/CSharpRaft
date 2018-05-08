@@ -1,8 +1,8 @@
 ﻿namespace CSharpRaft
 {
-    // IContext represents the current state of the server. It is passed into
-    // a command when the command is being applied since the server methods
-    // are locked.
+    /// <summary>
+    /// IContext represents the current state of the server.
+    /// </summary>
     public interface IContext
     {
         Server Server { get; }
@@ -36,7 +36,7 @@
         private int commitIndex;
 
         /// <summary>
-        /// returns a reference to the server.
+        /// A reference to the server.
         /// </summary>
         /// <returns></returns>
         public Server Server
@@ -48,7 +48,7 @@
         }
 
         /// <summary>
-        /// returns current term the server is in.
+        /// The current term the server is in.
         /// </summary>
         /// <returns></returns>
         public int CurrentTerm
@@ -60,7 +60,7 @@
         }
 
         /// <summary>
-        /// returns current index the server is at.
+        /// The current index the server is at.
         /// </summary>
         /// <returns></returns>
         public int CurrentIndex
@@ -72,7 +72,7 @@
         }
 
         /// <summary>
-        /// returns last commit index the server is at.
+        /// The last commit index the server is at.
         /// </summary>
         /// <returns></returns>
         public int CommitIndex

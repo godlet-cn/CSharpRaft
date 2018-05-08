@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace CSharpRaft
 {
     public delegate void RaftEventHandler(object sender, RaftEventArgs e);
-
+    
     public class RaftEventArgs: EventArgs
     {
         public RaftEventArgs() {
@@ -23,4 +23,21 @@ namespace CSharpRaft
         public object Value;
         public object PrevValue;
     }
+
+    //public delegate void ValueChangedEventHandler(object sender, ValueChangedEventArgs e);
+    //public class ValueChangedEventArgs : EventArgs
+    //{
+    //    public ValueChangedEventArgs()
+    //    {
+
+    //    }
+    //    public ValueChangedEventArgs(object value, object prevValue)
+    //    {
+    //        this.Value = value;
+    //        this.PrevValue = prevValue;
+    //    }
+
+    //    public object Value;
+    //    public object PrevValue;
+    //}
 }

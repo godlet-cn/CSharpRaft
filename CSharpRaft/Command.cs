@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Text;
 
 namespace CSharpRaft
@@ -10,23 +8,17 @@ namespace CSharpRaft
     /// </summary>
     public interface Command
     {
+        /// <summary>
+        /// The name of Command
+        /// </summary>
         string CommandName { get; }
-    }
 
-    /// <summary>
-    /// CommandApply represents the interface to apply a command to the server.
-    /// </summary>
-    public interface CommandApply
-    {
+        /// <summary>
+        /// Apply this command to the server.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         object Apply(IContext context);
-    }
-
-    /// <summary>
-    /// deprecatedCommandApply represents the old interface to apply a command to the server.
-    /// </summary>
-    public interface deprecatedCommandApply
-    {
-        object Apply(Server server);
     }
 
     public interface CommandEncoder
@@ -35,18 +27,16 @@ namespace CSharpRaft
         bool Decode(Stream reader);
     }
 
-    // Join command interface
-    public interface JoinCommand : Command
-    {
-        string NodeName();
-    }
-
     // Join command
-    public class DefaultJoinCommand: JoinCommand
+    public class JoinCommand: Command
     {
-        public string Name;
-        public string ConnectionString;
-        
+        /// <summary>
+        /// Node name
+        /// </summary>
+        public string Name { get; set; }
+
+        public string ConnectionString { get; set; }
+
         // The name of the Join command in the log
         public string CommandName
         {
@@ -56,29 +46,20 @@ namespace CSharpRaft
             }
         }
 
-        public object Apply(Server server)
+        public object Apply(IContext context)
         {
-            server.AddPeer(this.Name, this.ConnectionString);
+            context.Server.AddPeer(this.Name, this.ConnectionString);
             return UTF8Encoding.UTF8.GetBytes("join");
         }
-
-        public string NodeName()
-        {
-            return this.Name;
-        }
-    }
-
-    // Leave command interface
-    public interface LeaveCommand : Command
-    {
-        string NodeName();
     }
 
     // Leave command
-    public class DefaultLeaveCommand: LeaveCommand
+    public class LeaveCommand: Command
     {
-        public string Name;
-
+        /// <summary>
+        /// Node name
+        /// </summary>
+        public string Name { get; set; }
 
         // The name of the Leave command in the log
         public string CommandName
@@ -89,22 +70,17 @@ namespace CSharpRaft
             }
         }
 
-        public object Apply(Server server)
+        public object Apply(IContext context)
         {
-            server.RemovePeer(this.Name);
+            context.Server.RemovePeer(this.Name);
             return UTF8Encoding.UTF8.GetBytes("leave");
-        }
-
-        public string NodeName()
-        {
-            return this.Name;
         }
     }
 
     /// <summary>
     /// NOP command
     /// </summary>
-    public class NOPCommand: Command
+    public class NOPCommand: Command, CommandEncoder
     {
         // The name of the NOP command in the log
         public string CommandName
@@ -115,16 +91,16 @@ namespace CSharpRaft
             }
         }
 
-        public object Apply(Server server)
+        public object Apply(IContext context)
         {
             return null;
         }
 
-        public bool Encode(BinaryWriter writer) {
+        public bool Encode(Stream writer) {
             return false;
         }
 
-        public bool Decode(BinaryReader reader)
+        public bool Decode(Stream reader)
         {
             return false;
         }

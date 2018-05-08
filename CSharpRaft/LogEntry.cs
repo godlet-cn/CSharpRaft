@@ -1,21 +1,11 @@
-﻿using ProtoBuf;
+﻿using Newtonsoft.Json;
+using ProtoBuf;
 using System;
 using System.IO;
-using System.Runtime.Serialization.Json;
 using System.Text;
 
 namespace CSharpRaft
 {
-    // An internal event to be processed by the server's event loop.
-    public class LogEvent
-    {
-        internal object target;
-
-        internal object returnValue;
-
-        internal Exception c;
-    }
-
     /// <summary>
     /// A log entry stores a single item in the log.
     /// </summary>
@@ -28,40 +18,41 @@ namespace CSharpRaft
 
         internal Log log;
 
-        internal LogEvent ev;
-
         public LogEntry()
         {
 
         }
 
         // Creates a new log entry associated with a log.
-        public LogEntry(Log log, LogEvent ev, int index, int term, Command command)
+        public LogEntry(Log log, int index, int term, Command command)
         {
-            MemoryStream ms = new MemoryStream();
-            string commandName;
-            if (command != null)
+            using (MemoryStream ms = new MemoryStream())
             {
-                commandName = command.CommandName;
-                if (command is CommandEncoder)
+                string commandName;
+                if (command != null)
                 {
-                    (command as CommandEncoder).Encode(ms);
-                }
-                else
-                {
-                    DataContractJsonSerializer ser = new DataContractJsonSerializer(command.GetType());
-                    ser.WriteObject(ms, command);
-                }
+                    commandName = command.CommandName;
+                    if (command is CommandEncoder)
+                    {
+                        (command as CommandEncoder).Encode(ms);
+                    }
+                    else
+                    {
+                        string strCmd= JsonConvert.SerializeObject(command);
 
-                this.pb = new protobuf.LogEntry()
-                {
-                    Index = (uint)index,
-                    Term = (uint)term,
-                    CommandName = commandName,
-                    Command = ms.ToArray()
-                };
-                this.log = log;
-                this.ev = ev;
+                        byte[] cmdData = UTF8Encoding.UTF8.GetBytes(strCmd);
+                        ms.Write(cmdData,0,cmdData.Length);
+                    }
+
+                    this.pb = new protobuf.LogEntry()
+                    {
+                        Index = (uint)index,
+                        Term = (uint)term,
+                        CommandName = commandName,
+                        Command = ms.ToArray()
+                    };
+                    this.log = log;
+                }
             }
         }
 

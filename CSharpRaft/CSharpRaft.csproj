@@ -31,9 +31,12 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="protobuf-net, Version=2.0.0.622, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>bin\Debug\protobuf-net.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.11.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="protobuf-net">
+      <HintPath>..\packages\protobuf-net.2.3.7\lib\net40\protobuf-net.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -50,6 +53,7 @@
     <Compile Include="Command.cs" />
     <Compile Include="Commands.cs" />
     <Compile Include="Config.cs" />
+    <Compile Include="ConfigHelper.cs" />
     <Compile Include="Constants.cs" />
     <Compile Include="Context.cs" />
     <Compile Include="Crc32.cs" />
@@ -77,6 +81,7 @@
     <Compile Include="Transporter.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="protobuf\append_entries_request.proto" />
     <None Include="protobuf\append_entries_responses.proto" />
     <None Include="protobuf\log_entry.proto" />

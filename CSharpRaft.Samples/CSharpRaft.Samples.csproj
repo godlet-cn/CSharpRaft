@@ -43,8 +43,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="KeyValueDB.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="WriteCommand.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CSharpRaft\CSharpRaft.csproj">

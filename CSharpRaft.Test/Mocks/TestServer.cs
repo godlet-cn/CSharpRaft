@@ -1,10 +1,6 @@
-﻿using NUnit.Framework;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace CSharpRaft.Test.Mocks
 {
@@ -63,7 +59,7 @@ namespace CSharpRaft.Test.Mocks
         {
             List<Server> servers = new List<Server>();
 
-            LogEntry e0 = new LogEntry(new Log(), null, 1, 1, new Command1() { Val = "v123" });
+            LogEntry e0 = new LogEntry(new Log(), 1, 1, new Command1() { Val = "v123" });
 
             foreach (var name in names)
             {

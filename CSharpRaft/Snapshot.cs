@@ -1,8 +1,8 @@
-﻿using ProtoBuf;
+﻿using Newtonsoft.Json;
+using ProtoBuf;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.Serialization.Json;
 using System.Text;
 
 namespace CSharpRaft
@@ -29,8 +29,10 @@ namespace CSharpRaft
                 using (MemoryStream ms = new MemoryStream())
                 {
                     // Serialize to JSON.
-                    DataContractJsonSerializer ser = new DataContractJsonSerializer(typeof(Snapshot));
-                    ser.WriteObject(ms, this);
+                    string strSnapshot = JsonConvert.SerializeObject(this);
+
+                    byte[] cmdData = UTF8Encoding.UTF8.GetBytes(strSnapshot);
+                    ms.Write(cmdData, 0, cmdData.Length);
 
                     ms.Seek(0, SeekOrigin.Begin);
 

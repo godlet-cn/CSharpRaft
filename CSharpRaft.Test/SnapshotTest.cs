@@ -22,7 +22,7 @@ namespace CSharpRaft.Test
             {
                 if (state == ServerState.Leader)
                 {
-                    s.Do(new DefaultJoinCommand() { Name = s.Name });
+                    s.Do(new JoinCommand() { Name = s.Name });
                 }
                 s.Start();
             }

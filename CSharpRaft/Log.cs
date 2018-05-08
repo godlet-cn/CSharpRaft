@@ -24,7 +24,7 @@ namespace CSharpRaft
 
         private int commitIndex;
 
-        private object mutex;
+        private readonly object mutex = new object();
 
         // the index before the first entry in the Log entries
         internal int startIndex;
@@ -36,7 +36,6 @@ namespace CSharpRaft
         public Log()
         {
             entries = new List<LogEntry>();
-            mutex = new object();
         }
 
         //------------------------------------------------------------------------------
@@ -61,7 +60,7 @@ namespace CSharpRaft
         }
 
         // The current index in the log.
-        public int currentIndex
+        internal int currentIndex
         {
             get {
                 lock (mutex)
@@ -72,7 +71,7 @@ namespace CSharpRaft
         }
 
         // The current index in the log without locking
-        public int internalCurrentIndex
+        internal int internalCurrentIndex
         {
             get {
                 if (this.entries.Count == 0)
@@ -84,7 +83,7 @@ namespace CSharpRaft
         }
 
         // The next index in the log.
-        public int nextIndex
+        internal int nextIndex
         {
             get {
                 return this.currentIndex + 1;
@@ -92,7 +91,7 @@ namespace CSharpRaft
         }
 
         // Determines if the log contains zero entries.
-        public bool isEmpty
+        internal bool isEmpty
         {
             get
             {
@@ -104,7 +103,7 @@ namespace CSharpRaft
         }
 
         // The name of the last command in the log.
-        public string lastCommandName
+        internal string lastCommandName
         {
             get
             {
@@ -130,7 +129,7 @@ namespace CSharpRaft
         //--------------------------------------
 
         // The current term in the log.
-        public int currentTerm
+        internal int currentTerm
         {
             get {
                 lock (mutex)
@@ -159,7 +158,7 @@ namespace CSharpRaft
 
         // Opens the log file and reads existing entries. The log can remain open and
         // continue to append entries to the end of the log.
-        public void open(string path)
+        internal void open(string path)
         {
             // Read all the entries from the log if one exists.
             this.file = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
@@ -172,7 +171,7 @@ namespace CSharpRaft
             while (file.Position < file.Length)
             {
                 // Instantiate log entry and decode into it.
-                LogEntry entry = new LogEntry(this, null, 0, 0, null);
+                LogEntry entry = new LogEntry(this, 0, 0, null);
 
                 entry.Position = file.Seek(0, SeekOrigin.Current);
 
@@ -197,7 +196,7 @@ namespace CSharpRaft
         }
 
         // Closes the log file.
-        public void close()
+        internal void close()
         {
             lock (mutex)
             {
@@ -212,7 +211,7 @@ namespace CSharpRaft
         }
 
         // sync to disk
-        public void sync()
+        internal void sync()
         {
             this.file.Flush();
         }
@@ -222,14 +221,14 @@ namespace CSharpRaft
         //--------------------------------------
 
         // Creates a log entry associated with this log.
-        public LogEntry createEntry(int term, Command command, LogEvent ev)
+        internal LogEntry createEntry(int term, Command command)
         {
-            return new LogEntry(this, ev, this.nextIndex, term, command);
+            return new LogEntry(this,this.nextIndex, term, command);
         }
 
         // Retrieves an entry from the log. If the entry has been eliminated because
         // of a snapshot then null is returned.
-        public LogEntry getEntry(int index)
+        internal LogEntry getEntry(int index)
         {
             lock (mutex)
             {
@@ -242,7 +241,7 @@ namespace CSharpRaft
         }
 
         // Checks if the log contains a given index/term combination.
-        public bool containsEntry(int index, int term)
+        internal bool containsEntry(int index, int term)
         {
             LogEntry entry = this.getEntry(index);
             return (entry != null && entry.Term == term);
@@ -251,7 +250,7 @@ namespace CSharpRaft
         // Retrieves a list of entries after a given index as well as the term of the
         // index provided. A null list of entries is returned if the index no longer
         // exists because a snapshot was made.
-        public void getEntriesAfter(int index, int maxLogEntriesPerRequest, out List<LogEntry> entries, out int term)
+        internal void getEntriesAfter(int index, int maxLogEntriesPerRequest, out List<LogEntry> entries, out int term)
         {
             lock (mutex)
             {
@@ -314,7 +313,7 @@ namespace CSharpRaft
         //--------------------------------------
 
         // Retrieves the last index and term that has been committed to the log.
-        public void commitInfo(out int index, out int term)
+        internal void commitInfo(out int index, out int term)
         {
             lock (mutex)
             {
@@ -343,7 +342,7 @@ namespace CSharpRaft
         }
 
         // Retrieves the last index and term that has been appended to the log.
-        public void lastInfo(out int index, out int term)
+        internal void lastInfo(out int index, out int term)
         {
             lock (mutex)
             {
@@ -364,7 +363,7 @@ namespace CSharpRaft
         }
 
         // Updates the commit index
-        public void updateCommitIndex(int index)
+        internal void updateCommitIndex(int index)
         {
             lock (mutex)
             {
@@ -377,7 +376,7 @@ namespace CSharpRaft
         }
 
         // Updates the commit index and writes entries after that index to the stable storage.
-        public void setCommitIndex(int index)
+        internal void setCommitIndex(int index)
         {
             lock (mutex)
             {
@@ -427,10 +426,6 @@ namespace CSharpRaft
                     object returnValue = this.ApplyFunc(entry, command);
 
                     DebugTrace.Debug("setCommitIndex.set.result index: {0}, entries index: {1}", i, entryIndex);
-                    if (entry.ev != null)
-                    {
-                        entry.ev.returnValue = returnValue;
-                    }
 
                     // we can only commit up to the most recent join command
                     // if there is a join in this batch of commands.
@@ -445,7 +440,7 @@ namespace CSharpRaft
 
         // Set the commitIndex at the head of the log file to the current
         // commit Index. This should be called after obtained a log lock
-        public void flushCommitIndex()
+        internal void flushCommitIndex()
         {
             this.file.Seek(0, SeekOrigin.Begin);
 
@@ -461,7 +456,7 @@ namespace CSharpRaft
 
         // Truncates the log to the given index and term. This only works if the log
         // at the index has not been committed.
-        public void truncate(int index, int term)
+        internal void truncate(int index, int term)
         {
             lock (mutex)
             {
@@ -490,14 +485,6 @@ namespace CSharpRaft
                     this.file.SetLength(0);
 
                     this.file.Seek(0, SeekOrigin.Begin);
-                    // notify clients if this node is the previous leader
-                    foreach (var entry in this.entries)
-                    {
-                        if (entry.ev != null)
-                        {
-                            entry.ev.c = new Exception("command failed to be committed due to node failure");
-                        }
-                    }
 
                     this.entries = new List<LogEntry>();
                 }
@@ -508,7 +495,6 @@ namespace CSharpRaft
 
                     if (this.entries.Count > 0 && entry.Term != term)
                     {
-
                         DebugTrace.DebugLine("log.truncate.termMismatch");
 
                         throw new Exception(string.Format("raft.Log: Entry at index does not have matching term ({0}): (IDX={1}, TERM={2})", entry.Term, index, term));
@@ -528,12 +514,8 @@ namespace CSharpRaft
                         for (int i = index - this.startIndex; i < this.entries.Count; i++)
                         {
                             entry = this.entries[i];
-
-                            if (entry.ev != null)
-                            {
-                                entry.ev.c = new Exception("command failed to be committed due to node failure");
-                            }
                         }
+
                         List<LogEntry> newEntries = new List<LogEntry>();
                         for (int i = 0; i < index - this.startIndex; i++)
                         {
@@ -549,7 +531,7 @@ namespace CSharpRaft
         // Append
         //--------------------------------------
         // Appends a series of entries to the log.
-        public void appendEntries(List<protobuf.LogEntry> entries)
+        internal void appendEntries(List<protobuf.LogEntry> entries)
         {
             lock (mutex)
             {
@@ -574,7 +556,7 @@ namespace CSharpRaft
         }
 
         // Writes a single log entry to the end of the log.
-        public void appendEntry(LogEntry entry)
+        internal void appendEntry(LogEntry entry)
         {
             lock (mutex)
             {
@@ -611,7 +593,7 @@ namespace CSharpRaft
         }
 
         // appendEntry with Buffered io
-        public long writeEntry(LogEntry entry, Stream w)
+        internal long writeEntry(LogEntry entry, Stream w)
         {
             if (this.file == null)
             {
@@ -646,7 +628,7 @@ namespace CSharpRaft
         //--------------------------------------
 
         // compact the log before index (including index)
-        public void compact(int index, int term)
+        internal void compact(int index, int term)
         {
             List<LogEntry> entries = new List<LogEntry>();
             lock (mutex)
