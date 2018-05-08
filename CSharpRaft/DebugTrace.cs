@@ -20,6 +20,7 @@ namespace CSharpRaft
         }
 
         public static TextWriter LogWriter;
+
         public static int LogLevel;
 
         //------------------------------------------------------------------------------

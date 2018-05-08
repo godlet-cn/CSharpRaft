@@ -45,12 +45,12 @@ namespace CSharpRaft
             {
                 throw new System.Exception("raft: Cannot register nil");
             }
-            else if (commandTypes.ContainsKey(command.CommandName()) 
-                &&commandTypes[command.CommandName()] != null)
+            else if (commandTypes.ContainsKey(command.CommandName) 
+                &&commandTypes[command.CommandName] != null)
             {
-                throw new System.Exception("raft: Duplicate registration: " + command.CommandName());
+                throw new System.Exception("raft: Duplicate registration: " + command.CommandName);
             }
-            commandTypes[command.CommandName()] = command;
+            commandTypes[command.CommandName] = command;
         }
     }
 

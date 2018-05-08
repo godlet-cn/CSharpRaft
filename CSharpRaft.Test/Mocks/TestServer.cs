@@ -19,7 +19,7 @@ namespace CSharpRaft.Test.Mocks
         public const int TestHeartbeatInterval = 50;
         public const int TestElectionTimeout = 200;
 
-        public static Server NewTestServer(string name, Transporter transporter)
+        public static Server NewTestServer(string name, Transporter transporter,StateMachine statemachine=null)
         {
             string path = Path.Combine(Path.GetTempPath(), "raft-server-");
             if (!Directory.Exists(path))
@@ -30,10 +30,10 @@ namespace CSharpRaft.Test.Mocks
             RaftEventHandler fn = (sender, e) =>
             {
                 Server ser = sender as Server;
-                DebugTrace.Warn("[{0}] {0} -> {1}\n", ser.Name(), e.PrevValue, e.Value);
+                DebugTrace.Warn("[{0}] {0} -> {1}\n", ser.Name, e.PrevValue, e.Value);
             };
 
-            Server server = new Server(name, path, transporter, null, null, "");
+            Server server = new Server(name, path, transporter, statemachine, null, "");
             server.StateChanged += fn;
             server.LeaderChanged += fn;
             server.TermChanged += fn;
@@ -48,7 +48,7 @@ namespace CSharpRaft.Test.Mocks
         public static Server NewTestServerWithLog(string name, Transporter transporter, List<LogEntry> entries)
         {
             Server server = NewTestServer(name, transporter);
-            string logPath = server.LogPath();
+            string logPath = server.LogPath;
             using (FileStream file = File.Open(logPath, FileMode.OpenOrCreate, FileAccess.ReadWrite))
             {
                 foreach (var entry in entries)
@@ -72,17 +72,17 @@ namespace CSharpRaft.Test.Mocks
                     throw new Exception("raft: Duplicate server in test cluster! " + name);
                 }
                 Server server = NewTestServerWithLog("1", transporter, new List<LogEntry>() { e0 });
-                server.SetElectionTimeout(TestElectionTimeout);
+                server.ElectionTimeout=TestElectionTimeout;
                 servers.Add(server);
                 lookup[name] = server;
             }
             foreach (var server in servers)
             {
-                server.SetHeartbeatInterval(TestHeartbeatInterval);
+                server.HeartbeatInterval=TestHeartbeatInterval;
                 server.Start();
                 foreach (var peer in servers)
                 {
-                    server.AddPeer(peer.Name(), "");
+                    server.AddPeer(peer.Name, "");
                 }
             }
             return servers;

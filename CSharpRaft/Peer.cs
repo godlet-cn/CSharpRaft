@@ -6,21 +6,19 @@ namespace CSharpRaft
     // A peer is a reference to another server involved in the consensus protocol.
     public class Peer
     {
-        public Server server;
+        public string Name { get; set; }
 
-        public string Name;
+        public string ConnectionString { get; set; }
 
-        public string ConnectionString;
+        internal Server server;
 
-        public int prevLogIndex;
 
-        public bool stopChan;
+        internal bool stopChan;
 
-        public int heartbeatInterval;
+        internal int heartbeatInterval;
 
-        public DateTime lastActivity;
 
-        internal object mutex;
+        private object mutex;
 
         //------------------------------------------------------------------------------
         //
@@ -56,31 +54,43 @@ namespace CSharpRaft
         // Prev log index
         //--------------------------------------
 
-        // Retrieves the previous log index.
-        public int getPrevLogIndex()
+        private int prevLogIndex;
+        // Retrieves or sets the previous log index.
+        public int PrevLogIndex
         {
-            lock (mutex)
+            get
             {
-
-                return this.prevLogIndex;
+                lock (mutex)
+                {
+                    return this.prevLogIndex;
+                }
+            }
+            set
+            {
+                lock (mutex)
+                {
+                    this.prevLogIndex = value;
+                }
             }
         }
 
-        // Sets the previous log index.
-        public void setPrevLogIndex(int value)
+        private DateTime lastActivity;
+        // LastActivity returns the last time any response was received from the peer.
+        public DateTime LastActivity
         {
-            lock (mutex)
+            get
             {
-
-                this.prevLogIndex = value;
+                lock (mutex)
+                {
+                    return this.lastActivity;
+                }
             }
-        }
-
-        public void setLastActivity(DateTime now)
-        {
-            lock (mutex)
+            set
             {
-                this.lastActivity = now;
+                lock (mutex)
+                {
+                    this.lastActivity = value;
+                }
             }
         }
 
@@ -111,15 +121,6 @@ namespace CSharpRaft
             }
         }
 
-        // LastActivity returns the last time any response was received from the peer.
-        public DateTime LastActivity()
-        {
-            lock (mutex)
-            {
-                return this.lastActivity;
-            }
-        }
-
         //--------------------------------------
         // Heartbeat
         //--------------------------------------
@@ -130,9 +131,9 @@ namespace CSharpRaft
             //this.stopChan = make(chan bool);
 
             //c:= make(chan bool);
-            
-            this.setLastActivity(DateTime.Now);
-            
+
+            this.LastActivity = DateTime.Now;
+
             //this.server.routineGroup.Add(1)
 
             //go func()
@@ -148,7 +149,7 @@ namespace CSharpRaft
         // Stops the peer heartbeat.
         public void stopHeartbeat(bool flush)
         {
-            this.setLastActivity(DateTime.Now);
+            this.LastActivity = DateTime.Now;
             this.stopChan = flush;
         }
 
@@ -208,22 +209,22 @@ namespace CSharpRaft
         {
             DebugTrace.Debug("peer.heartbeat.flush: ", this.Name);
 
-            int prevLogIndex = this.getPrevLogIndex();
+            int prevLogIndex = this.PrevLogIndex;
 
-            int term = this.server.currentTerm;
+            int term = this.server.Term;
 
             List<LogEntry> entries;
             int prevLogTerm;
 
             this.server.log.getEntriesAfter(prevLogIndex, this.server.maxLogEntriesPerRequest, out entries, out prevLogTerm);
-            
-            if (entries!= null)
+
+            if (entries != null)
             {
-                this.sendAppendEntriesRequest(new AppendEntriesRequest(term, prevLogIndex, prevLogTerm, this.server.log.CommitIndex(), this.server.name, entries));
+                this.sendAppendEntriesRequest(new AppendEntriesRequest(term, prevLogIndex, prevLogTerm, this.server.log.CommitIndex, this.server.Name, entries));
             }
             else
             {
-                this.sendSnapshotRequest(new SnapshotRequest(this.server.name, this.server.snapshot));
+                this.sendSnapshotRequest(new SnapshotRequest(this.server.Name, this.server.GetSnapshot()));
             }
         }
 
@@ -235,27 +236,27 @@ namespace CSharpRaft
         public void sendAppendEntriesRequest(AppendEntriesRequest req)
         {
             DebugTrace.Trace("peer.append.send: {0}->{1} [prevLog:{2} length: {3}]\n",
-                this.server.Name(), this.Name, req.PrevLogIndex, req.Entries.Count);
+                this.server.Name, this.Name, req.PrevLogIndex, req.Entries.Count);
 
 
-            var resp = this.server.Transporter().SendAppendEntriesRequest(this.server, this, req);
+            var resp = this.server.Transporter.SendAppendEntriesRequest(this.server, this, req);
 
             if (resp == null)
             {
                 this.server.DispatchHeartbeatIntervalEvent(new RaftEventArgs(this, null));
-                DebugTrace.Debug("peer.append.timeout: ", this.server.Name(), "->", this.Name);
+                DebugTrace.Debug("peer.append.timeout: ", this.server.Name, "->", this.Name);
 
                 return;
             }
-            DebugTrace.TraceLine("peer.append.resp: ", this.server.Name(), "<-", this.Name);
+            DebugTrace.TraceLine("peer.append.resp: ", this.server.Name, "<-", this.Name);
 
 
-            this.setLastActivity(DateTime.Now);
+            this.LastActivity = DateTime.Now;
             // If successful then update the previous log index.
             lock (mutex)
             {
 
-                if (resp.Success())
+                if (resp.Success)
                 {
                     if (req.Entries.Count > 0)
                     {
@@ -263,7 +264,7 @@ namespace CSharpRaft
 
                         // if peer append a log entry from the current term
                         // we set append to true
-                        if (req.Entries[req.Entries.Count - 1].Term == this.server.currentTerm)
+                        if (req.Entries[req.Entries.Count - 1].Term == this.server.Term)
                         {
                             resp.append = true;
                         }
@@ -274,7 +275,7 @@ namespace CSharpRaft
                 }
                 else
                 {
-                    if (resp.Term() > this.server.Term())
+                    if (resp.Term > this.server.Term)
                     {
                         // this happens when there is a new leader comes up that this *leader* has not
                         // known yet.
@@ -283,7 +284,7 @@ namespace CSharpRaft
                         DebugTrace.Debug("peer.append.resp.not.update: new.leader.found");
 
                     }
-                    else if (resp.Term() == req.Term && resp.CommitIndex() >= this.prevLogIndex)
+                    else if (resp.Term == req.Term && resp.CommitIndex >= this.prevLogIndex)
                     {
                         // we may miss a response from peer
                         // so maybe the peer has committed the logs we just sent
@@ -293,7 +294,7 @@ namespace CSharpRaft
                         // peer failed to truncate the log and sent a fail reply at this time
                         // we just need to update peer's prevLog index to commitIndex
 
-                        this.prevLogIndex = resp.CommitIndex();
+                        this.prevLogIndex = resp.CommitIndex;
 
                         DebugTrace.Debug("peer.append.resp.update: ", this.Name, "; idx =", this.prevLogIndex);
                     }
@@ -304,9 +305,9 @@ namespace CSharpRaft
                         // problem.
                         this.prevLogIndex--;
                         // if it not enough, we directly decrease to the index of the
-                        if (this.prevLogIndex > resp.Index())
+                        if (this.prevLogIndex > resp.Index)
                         {
-                            this.prevLogIndex = resp.Index();
+                            this.prevLogIndex = resp.Index;
 
                         };
 
@@ -327,7 +328,7 @@ namespace CSharpRaft
         {
             DebugTrace.Debug("peer.snap.send: ", this.Name);
 
-            var resp = this.server.Transporter().SendSnapshotRequest(this.server, this, req);
+            var resp = this.server.Transporter.SendSnapshotRequest(this.server, this, req);
 
             if (resp == null)
             {
@@ -339,7 +340,7 @@ namespace CSharpRaft
 
             //If successful, the peer should have been to snapshot state
             //Send it the snapshot!
-            this.setLastActivity(DateTime.Now);
+            this.LastActivity = DateTime.Now;
             if (resp.Success)
             {
                 this.sendSnapshotRecoveryRequest();
@@ -354,12 +355,11 @@ namespace CSharpRaft
         // Sends an Snapshot Recovery request to the peer through the transport.
         public void sendSnapshotRecoveryRequest()
         {
-            SnapshotRecoveryRequest req = new SnapshotRecoveryRequest(this.server.name, this.server.snapshot);
+            SnapshotRecoveryRequest req = new SnapshotRecoveryRequest(this.server.Name, this.server.GetSnapshot());
 
             DebugTrace.Debug("peer.snap.recovery.send: ", this.Name);
 
-            var resp = this.server.Transporter().SendSnapshotRecoveryRequest(this.server, this, req);
-
+            var resp = this.server.Transporter.SendSnapshotRecoveryRequest(this.server, this, req);
 
             if (resp == null)
             {
@@ -367,7 +367,7 @@ namespace CSharpRaft
                 return;
             }
 
-            this.setLastActivity(DateTime.Now);
+            this.LastActivity = DateTime.Now;
 
             if (resp.Success)
             {
@@ -387,16 +387,16 @@ namespace CSharpRaft
         // send VoteRequest Request
         public void sendVoteRequest(RequestVoteRequest req, RequestVoteResponse c)
         {
-            DebugTrace.Debug("peer.vote: ", this.server.Name(), "->", this.Name);
+            DebugTrace.Debug("peer.vote: ", this.server.Name, "->", this.Name);
 
             req.peer = this;
 
-            RequestVoteResponse resp = this.server.Transporter().SendVoteRequest(this.server, this, req);
+            RequestVoteResponse resp = this.server.Transporter.SendVoteRequest(this.server, this, req);
             if (resp != null)
             {
-                DebugTrace.Debug("peer.vote.recv: ", this.server.Name(), "<-", this.Name);
+                DebugTrace.Debug("peer.vote.recv: ", this.server.Name, "<-", this.Name);
 
-                this.setLastActivity(DateTime.Now);
+                this.LastActivity = DateTime.Now;
 
                 resp.peer = this;
 
@@ -404,7 +404,7 @@ namespace CSharpRaft
             }
             else
             {
-                DebugTrace.Debug("peer.vote.failed: ", this.server.Name(), "<-", this.Name);
+                DebugTrace.Debug("peer.vote.failed: ", this.server.Name, "<-", this.Name);
             }
         }
     }

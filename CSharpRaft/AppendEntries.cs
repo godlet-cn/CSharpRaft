@@ -29,6 +29,7 @@ namespace CSharpRaft
             {
                 pbEntries.Add(item.pb);
             }
+
             this.Term = term;
             this.PrevLogIndex = prevLogIndex;
             this.PrevLogTerm = prevLogTerm;
@@ -93,24 +94,35 @@ namespace CSharpRaft
             };
         }
 
-        public int Index()
+        public int Index
         {
-            return (int)this.pb.Index;
+            get {
+                return (int)this.pb.Index;
+            }
         }
 
-        public int CommitIndex()
+        public int CommitIndex
         {
-            return (int)this.pb.CommitIndex;
+            get
+            {
+                return (int)this.pb.CommitIndex;
+            }
         }
 
-        public int Term()
+        public int Term
         {
-            return (int)this.pb.Term;
+            get
+            {
+                return (int)this.pb.Term;
+            }
         }
 
-        public bool Success()
+        public bool Success
         {
-            return this.pb.Success;
+            get
+            {
+                return this.pb.Success;
+            }
         }
 
         // Encodes the AppendEntriesResponse to a buffer. Returns the number of bytes
@@ -124,9 +136,7 @@ namespace CSharpRaft
         // any error that occurs.
         public void Decode(Stream stream)
         {
-
             this.pb = Serializer.Deserialize<protobuf.AppendEntriesResponse>(stream);
-
         }
     }
 }

@@ -5,22 +5,27 @@ using System.Text;
 
 namespace CSharpRaft
 {
-    // Command represents an action to be taken on the replicated state machine.
+    /// <summary>
+    /// Command represents an action to be taken on the replicated state machine.
+    /// </summary>
     public interface Command
     {
-        string CommandName();
+        string CommandName { get; }
     }
 
-    // CommandApply represents the interface to apply a command to the server.
+    /// <summary>
+    /// CommandApply represents the interface to apply a command to the server.
+    /// </summary>
     public interface CommandApply
     {
-        object Apply(Context context);
+        object Apply(IContext context);
     }
 
-    // deprecatedCommandApply represents the old interface to apply a command to the server.
+    /// <summary>
+    /// deprecatedCommandApply represents the old interface to apply a command to the server.
+    /// </summary>
     public interface deprecatedCommandApply
     {
-
         object Apply(Server server);
     }
 
@@ -29,7 +34,6 @@ namespace CSharpRaft
         bool Encode(Stream writer);
         bool Decode(Stream reader);
     }
-
 
     // Join command interface
     public interface JoinCommand : Command
@@ -44,9 +48,12 @@ namespace CSharpRaft
         public string ConnectionString;
         
         // The name of the Join command in the log
-        public string CommandName()
+        public string CommandName
         {
-            return "raft:join";
+            get
+            {
+                return "raft:join";
+            }
         }
 
         public object Apply(Server server)
@@ -74,9 +81,12 @@ namespace CSharpRaft
 
 
         // The name of the Leave command in the log
-        public string CommandName()
+        public string CommandName
         {
-            return "raft:leave";
+            get
+            {
+                return "raft:leave";
+            }
         }
 
         public object Apply(Server server)
@@ -91,14 +101,18 @@ namespace CSharpRaft
         }
     }
 
-    // NOP command
+    /// <summary>
+    /// NOP command
+    /// </summary>
     public class NOPCommand: Command
     {
-
         // The name of the NOP command in the log
-        public string CommandName()
+        public string CommandName
         {
-            return "raft:nop";
+            get
+            {
+                return "raft:nop";
+            }
         }
 
         public object Apply(Server server)
@@ -115,8 +129,4 @@ namespace CSharpRaft
             return false;
         }
     }
-
-
-
-
 }

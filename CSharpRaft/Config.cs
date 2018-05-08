@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace CSharpRaft
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class Config
     {
         public int CommitIndex { get; set; }

@@ -7,22 +7,22 @@ using System.Text;
 
 namespace CSharpRaft
 {
-
     // Snapshot represents an in-memory representation of the current state of the system.
     public class Snapshot
     {
-        public int LastIndex;
-        public int LastTerm;
+        public int LastIndex { get; set; }
+
+        public int LastTerm { get; set; }
 
         // Cluster configuration.
-        public List<Peer> Peers;
+        public List<Peer> Peers { get; set; }
 
-        public byte[] State;
+        public byte[] State { get; set; }
 
-        public string Path;
+        public string Path { get; set; }
 
         // save writes the snapshot to file.
-        public void save()
+        internal void save()
         {
             using (FileStream file = new FileStream(this.Path, FileMode.OpenOrCreate, FileAccess.ReadWrite))
             {
@@ -50,7 +50,7 @@ namespace CSharpRaft
         }
 
         // remove deletes the snapshot file.
-        public void remove()
+        internal void remove()
         {
             File.Delete(this.Path);
         }
@@ -59,11 +59,11 @@ namespace CSharpRaft
     // The request sent to a server to start from the snapshot.
     public class SnapshotRecoveryRequest
     {
-        public string LeaderName;
-        public int LastIndex;
-        public int LastTerm;
-        public List<Peer> Peers;
-        public byte[] State;
+        public string LeaderName { get; set; }
+        public int LastIndex { get; set; }
+        public int LastTerm { get; set; }
+        public List<Peer> Peers { get; set; }
+        public byte[] State { get; set; }
 
         public SnapshotRecoveryRequest() {
 
@@ -134,10 +134,10 @@ namespace CSharpRaft
     // The response returned from a server appending entries to the log.
     public class SnapshotRecoveryResponse
     {
-        public int Term;
+        public int Term { get; set; }
 
-        public bool Success;
-        public int CommitIndex;
+        public bool Success { get; set; }
+        public int CommitIndex { get; set; }
 
         // Creates a new Snapshot response.
         public SnapshotRecoveryResponse(int term, bool success, int commitIndex)
@@ -177,10 +177,9 @@ namespace CSharpRaft
     // The request sent to a server to start from the snapshot.
     public class SnapshotRequest
     {
-
-        public string LeaderName;
-        public int LastIndex;
-        public int LastTerm;
+        public string LeaderName { get; set; }
+        public int LastIndex { get; set; }
+        public int LastTerm { get; set; }
 
         public SnapshotRequest()
         {
@@ -227,7 +226,7 @@ namespace CSharpRaft
     // The response returned if the follower entered snapshot state
     public class SnapshotResponse
     {
-        public bool Success;
+        public bool Success { get; set; }
 
         // Creates a new Snapshot response.
         public SnapshotResponse(bool success)

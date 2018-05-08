@@ -10,34 +10,39 @@ namespace CSharpRaft
     public class LogEvent
     {
         internal object target;
+
         internal object returnValue;
+
         internal Exception c;
     }
 
-    // A log entry stores a single item in the log.
+    /// <summary>
+    /// A log entry stores a single item in the log.
+    /// </summary>
     public class LogEntry
     {
         internal protobuf.LogEntry pb;
 
         // position in the log file
-        public long Position;  
+        internal long Position;
 
         internal Log log;
 
         internal LogEvent ev;
 
-        public LogEntry() {
+        public LogEntry()
+        {
 
         }
 
         // Creates a new log entry associated with a log.
-        public LogEntry(Log log, LogEvent ev,  int index, int term, Command command)
+        public LogEntry(Log log, LogEvent ev, int index, int term, Command command)
         {
             MemoryStream ms = new MemoryStream();
             string commandName;
             if (command != null)
             {
-                commandName = command.CommandName();
+                commandName = command.CommandName;
                 if (command is CommandEncoder)
                 {
                     (command as CommandEncoder).Encode(ms);
@@ -53,38 +58,50 @@ namespace CSharpRaft
                     Index = (uint)index,
                     Term = (uint)term,
                     CommandName = commandName,
-                    Command= ms.ToArray()
+                    Command = ms.ToArray()
                 };
                 this.log = log;
                 this.ev = ev;
             }
         }
 
-        public int Index()
+        public int Index
         {
-            return (int)this.pb.Index;
+            get
+            {
+                return (int)this.pb.Index;
+            }
         }
 
-        public int Term()
+        public int Term
         {
-            return (int)this.pb.Term;
+            get
+            {
+                return (int)this.pb.Term;
+            }
         }
 
-        public string CommandName()
+        public string CommandName
         {
-            return this.pb.CommandName;
+            get
+            {
+                return this.pb.CommandName;
+            }
         }
 
-        public byte[] Command()
+        public byte[] Command
         {
-            return this.pb.Command;
+            get
+            {
+                return this.pb.Command;
+            }
         }
 
         // Encodes the log entry to a buffer. Returns the number of bytes
         // written and any error that may have occurred.
         public int Encode(Stream writer)
         {
-            int size=0;
+            int size = 0;
             using (MemoryStream ms = new MemoryStream())
             {
                 Serializer.Serialize<protobuf.LogEntry>(ms, this.pb);

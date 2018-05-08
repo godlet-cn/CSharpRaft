@@ -17,13 +17,12 @@ namespace CSharpRaft.Test
         {
             MockRepository mocks = new MockRepository();
             StateMachine m = mocks.DynamicMock<StateMachine>();
-            Server s = TestServer.NewTestServer("1", new TestTransporter());
+            Server s = TestServer.NewTestServer("1", new TestTransporter(), m);
             try
             {
-                s.stateMachine = m;
                 if (state == ServerState.Leader)
                 {
-                    s.Do(new DefaultJoinCommand() { Name = s.Name() });
+                    s.Do(new DefaultJoinCommand() { Name = s.Name });
                 }
                 s.Start();
             }
@@ -43,17 +42,18 @@ namespace CSharpRaft.Test
         {
             runServerWithMockStateMachine(ServerState.Leader, (s, m) =>
             {
-                Assert.AreEqual(s.Name(), "1");
+                Assert.AreEqual(s.Name, "1");
 
                 s.Do(new Command1() { Val = "123" });
 
                 s.TakeSnapshot();
-                Assert.AreEqual(s.snapshot.LastIndex, 2);
+
+                Assert.AreEqual(s.GetSnapshot().LastIndex, 2);
 
                 // Repeat to make sure new snapshot gets created.
                 s.Do(new Command1() { Val = "345" });
                 s.TakeSnapshot();
-                Assert.AreEqual(s.snapshot.LastIndex, 4);
+                Assert.AreEqual(s.GetSnapshot().LastIndex, 4);
 
                 // Restart server.
                 s.Stop();
@@ -72,7 +72,7 @@ namespace CSharpRaft.Test
                 s.Do(new Command1() { Val = "123" });
                 s.TakeSnapshot();
 
-                Assert.AreEqual(s.snapshot.LastIndex, 2);
+                Assert.AreEqual(s.GetSnapshot().LastIndex, 2);
 
                 // Repeat to make sure new snapshot gets created.
                 s.Do(new Command1() { Val = "123" });
@@ -81,7 +81,7 @@ namespace CSharpRaft.Test
                 s.Stop();
 
                 // create a new server with previous log and snapshot
-                Server newS = new Server("1", s.GetPath(), new TestTransporter { }, s.StateMachine(), null, "");
+                Server newS = new Server("1", s.Path, new TestTransporter { }, s.StateMachine, null, "");
                 // Recover from snapshot.
                 newS.LoadSnapshot();
 
@@ -91,7 +91,7 @@ namespace CSharpRaft.Test
                 Thread.Sleep(1000);
 
                 // ensure server load the previous log
-                Assert.AreEqual(newS.LogEntries().Count, 3, "");
+                Assert.AreEqual(newS.LogEntries.Count, 3, "");
                 newS.Stop();
             });
         }
@@ -106,7 +106,7 @@ namespace CSharpRaft.Test
                 Assert.AreEqual(resp.Success, true);
 
 
-                Assert.AreEqual(s.State(), ServerState.Snapshotting);
+                Assert.AreEqual(s.State, ServerState.Snapshotting);
 
                 // Send recovery request.
                 var resp2 = s.SnapshotRecoveryRequest(new SnapshotRecoveryRequest()

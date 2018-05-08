@@ -1,71 +1,86 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace CSharpRaft
+﻿namespace CSharpRaft
 {
-    // Context represents the current state of the server. It is passed into
+    // IContext represents the current state of the server. It is passed into
     // a command when the command is being applied since the server methods
     // are locked.
-    public interface Context
+    public interface IContext
     {
-        Server Server();
+        Server Server { get; }
 
-        int CurrentTerm();
+        int CurrentTerm { get; }
 
-        int CurrentIndex();
+        int CurrentIndex { get; }
 
-        int CommitIndex();
-
+        int CommitIndex { get; }
     }
 
-    // context is the concrete implementation of Context.
-    public class context: Context
+    /// <summary>
+    /// Context is the concrete implementation of IContext.
+    /// </summary>
+    public class Context: IContext
     {
-        public Server server;
+        public Context(Server server, int currentIndex, int currentTerm, int commitIndex)
+        {
+            this.server = server;
+            this.currentIndex = currentIndex;
+            this.currentTerm = currentTerm;
+            this.commitIndex = commitIndex;
+        }
 
-        public int currentIndex;
+        private Server server;
 
-        public int currentTerm;
+        private int currentIndex;
 
-        public int commitIndex;
+        private int currentTerm;
+
+        private int commitIndex;
 
         /// <summary>
         /// returns a reference to the server.
         /// </summary>
         /// <returns></returns>
-        public Server Server()
+        public Server Server
         {
-            return this.server;
+            get
+            {
+                return this.server;
+            }
         }
 
         /// <summary>
         /// returns current term the server is in.
         /// </summary>
         /// <returns></returns>
-        public int CurrentTerm()
+        public int CurrentTerm
         {
-            return this.currentTerm;
+            get
+            {
+                return this.currentTerm;
+            }
         }
 
         /// <summary>
         /// returns current index the server is at.
         /// </summary>
         /// <returns></returns>
-        public int CurrentIndex()
+        public int CurrentIndex
         {
-            return this.currentIndex;
+            get
+            {
+                return this.currentIndex;
+            }
         }
 
         /// <summary>
         /// returns last commit index the server is at.
         /// </summary>
         /// <returns></returns>
-        public int CommitIndex()
+        public int CommitIndex
         {
-            return this.commitIndex;
+            get
+            {
+                return this.commitIndex;
+            }
         }
     }
 

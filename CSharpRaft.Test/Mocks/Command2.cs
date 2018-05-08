@@ -5,9 +5,12 @@ namespace CSharpRaft.Test.Mocks
     {
         public int Id { get; set; }
 
-        public string CommandName()
+        public string CommandName
         {
-            return "Command2";
+            get
+            {
+                return "Command2";
+            }
         }
 
         public object Apply(Server server)

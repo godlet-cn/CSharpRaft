@@ -6,15 +6,15 @@ namespace CSharpRaft
     // The request sent to a server to vote for a candidate to become a leader.
     public class RequestVoteRequest
     {
-        public Peer peer;
+        internal Peer peer;
 
-        public int Term;
+        public int Term { get; set; }
 
-        public int LastLogIndex;
+        public int LastLogIndex { get; set; }
 
-        public int LastLogTerm;
+        public int LastLogTerm { get; set; }
 
-        public string CandidateName;
+        public string CandidateName { get; set; }
 
         public RequestVoteRequest(int term, string candidateName, int lastLogIndex, int lastLogTerm)
         {
@@ -54,11 +54,11 @@ namespace CSharpRaft
     public class RequestVoteResponse
     {
 
-        public Peer peer;
+        internal Peer peer;
 
-        public int Term;
+        public int Term { get; set; }
 
-        public bool VoteGranted;
+        public bool VoteGranted { get; set; }
 
 
         // Creates a new RequestVote response.

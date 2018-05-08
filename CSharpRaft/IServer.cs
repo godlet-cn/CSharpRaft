@@ -1,58 +1,54 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace CSharpRaft
 {
     public interface IServer
     {
-        string Name();
+        string Name { get; }
 
-        object Context();
+        object Context { get; }
 
-        StateMachine StateMachine();
+        StateMachine StateMachine { get; }
 
-        string Leader();
+        string Leader { get; }
 
-        ServerState State();
+        ServerState State { get; }
 
-        string GetPath();
+        string Path { get; }
 
-        string LogPath();
+        string LogPath { get; }
+        
+        int Term { get; }
 
-        string SnapshotPath(int lastIndex, int lastTerm);
+        int CommitIndex { get; }
 
-        int Term();
+        string VotedFor { get; }
 
-        int CommitIndex();
+        int MemberCount { get; }
 
-        string VotedFor();
+        int QuorumSize { get; }
 
-        int MemberCount();
+        bool IsLogEmpty { get; }
 
-        int QuorumSize();
+        List<LogEntry> LogEntries { get; }
 
-        bool IsLogEmpty();
+        string LastCommandName { get; }
 
-        List<LogEntry> LogEntries();
+        int ElectionTimeout { get; set; }
 
-        string LastCommandName();
+        int HeartbeatInterval { get; set; }
 
-        string GetState();
+        Transporter Transporter { get; set; }
 
-        int ElectionTimeout();
+        bool IsRunning { get; }
 
-        void SetElectionTimeout(int duration);
+        void Init();
 
-        int HeartbeatInterval();
+        void Start();
 
-        void SetHeartbeatInterval(int duration);
+        void Stop();
 
-        Transporter Transporter();
-
-        void SetTransporter(Transporter t);
+        object Do(Command command);
 
         AppendEntriesResponse AppendEntries(AppendEntriesRequest req);
 
@@ -66,22 +62,34 @@ namespace CSharpRaft
 
         void RemovePeer(string name);
 
-        Dictionary<string, Peer> Peers();
+        Dictionary<string, Peer> GetPeers();
 
-        void Init();
+        Snapshot GetSnapshot();
 
-        void Start();
-
-        void Stop();
-
-        bool Running();
-
-        object Do(Command command);
+        string GetSnapshotPath(int lastIndex, int lastTerm);
 
         void TakeSnapshot();
 
         void LoadSnapshot();
 
         void FlushCommitIndex();
+
+        event RaftEventHandler StateChanged;
+
+        event RaftEventHandler LeaderChanged;
+
+        event RaftEventHandler TermChanged;
+
+        event RaftEventHandler Commited;
+
+        event RaftEventHandler PeerAdded;
+
+        event RaftEventHandler PeerRemoved;
+
+        event RaftEventHandler HeartbeatIntervalReached;
+
+        event RaftEventHandler ElectionTimeoutThresholdReached;
+
+        event RaftEventHandler HeartbeatReached;
     }
 }

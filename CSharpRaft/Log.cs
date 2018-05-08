@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using uint64 = System.UInt64;
 
 namespace CSharpRaft
 {
@@ -9,6 +8,7 @@ namespace CSharpRaft
     public class logResult
     {
         object returnValue;
+
         Exception err;
     }
 
@@ -16,15 +16,15 @@ namespace CSharpRaft
     {
         public Func<LogEntry, Command, object> ApplyFunc;
 
-        internal FileStream file;
+        private FileStream file;
 
-        internal string path;
+        private string path;
 
         internal List<LogEntry> entries;
 
-        internal int commitIndex;
+        private int commitIndex;
 
-        internal object mutex;
+        private object mutex;
 
         // the index before the first entry in the Log entries
         internal int startIndex;
@@ -50,64 +50,79 @@ namespace CSharpRaft
         //--------------------------------------
 
         // The last committed index in the log.
-        public int CommitIndex()
+        public int CommitIndex
         {
-            lock (mutex)
-            {
-                return this.commitIndex;
+            get {
+                lock (mutex)
+                {
+                    return this.commitIndex;
+                }
             }
         }
 
         // The current index in the log.
-        public int currentIndex()
+        public int currentIndex
         {
-            lock (mutex)
-            {
-                return this.internalCurrentIndex();
+            get {
+                lock (mutex)
+                {
+                    return this.internalCurrentIndex;
+                }
             }
         }
 
         // The current index in the log without locking
-        public int internalCurrentIndex()
+        public int internalCurrentIndex
         {
-            if (this.entries.Count == 0)
-            {
-                return this.startIndex;
+            get {
+                if (this.entries.Count == 0)
+                {
+                    return this.startIndex;
+                }
+                return this.entries[this.entries.Count - 1].Index;
             }
-            return this.entries[this.entries.Count - 1].Index();
         }
 
         // The next index in the log.
-        public int nextIndex()
+        public int nextIndex
         {
-            return this.currentIndex() + 1;
+            get {
+                return this.currentIndex + 1;
+            }
         }
 
         // Determines if the log contains zero entries.
-        public bool isEmpty()
+        public bool isEmpty
         {
-            lock (mutex)
+            get
             {
-                return (this.entries.Count == 0) && (this.startIndex == 0);
+                lock (mutex)
+                {
+                    return (this.entries.Count == 0) && (this.startIndex == 0);
+                }
             }
         }
 
         // The name of the last command in the log.
-        public string lastCommandName()
+        public string lastCommandName
         {
-            lock (mutex)
+            get
             {
-                if (this.entries.Count > 0)
-                {
-                    var entry = this.entries[this.entries.Count - 1];
-                    if (entry != null)
-                    {
-                        return entry.CommandName();
 
+                lock (mutex)
+                {
+                    if (this.entries.Count > 0)
+                    {
+                        var entry = this.entries[this.entries.Count - 1];
+                        if (entry != null)
+                        {
+                            return entry.CommandName;
+
+                        }
                     }
                 }
+                return "";
             }
-            return "";
         }
 
         //--------------------------------------
@@ -115,17 +130,19 @@ namespace CSharpRaft
         //--------------------------------------
 
         // The current term in the log.
-        public int currentTerm()
+        public int currentTerm
         {
-            lock (mutex)
-            {
-
-                if (this.entries.Count == 0)
+            get {
+                lock (mutex)
                 {
-                    return this.startTerm;
 
+                    if (this.entries.Count == 0)
+                    {
+                        return this.startTerm;
+
+                    }
+                    return this.entries[this.entries.Count - 1].Term;
                 }
-                return this.entries[this.entries.Count - 1].Term();
             }
         }
 
@@ -160,17 +177,17 @@ namespace CSharpRaft
                 entry.Position = file.Seek(0, SeekOrigin.Current);
 
                 entry.Decode(this.file);
-                if (entry.Index() > this.startIndex)
+                if (entry.Index > this.startIndex)
                 {
                     // Append entry.
                     this.entries.Add(entry);
 
-                    if (entry.Index() <= this.commitIndex)
+                    if (entry.Index <= this.commitIndex)
                     {
-                        Command command = Commands.newCommand(entry.CommandName(), entry.Command());
+                        Command command = Commands.newCommand(entry.CommandName, entry.Command);
                         this.ApplyFunc(entry, command);
                     }
-                    DebugTrace.DebugLine("open.log.append log index ", entry.Index());
+                    DebugTrace.DebugLine("open.log.append log index ", entry.Index);
                 }
             }
 
@@ -207,7 +224,7 @@ namespace CSharpRaft
         // Creates a log entry associated with this log.
         public LogEntry createEntry(int term, Command command, LogEvent ev)
         {
-            return new LogEntry(this, ev, this.nextIndex(), term, command);
+            return new LogEntry(this, ev, this.nextIndex, term, command);
         }
 
         // Retrieves an entry from the log. If the entry has been eliminated because
@@ -228,7 +245,7 @@ namespace CSharpRaft
         public bool containsEntry(int index, int term)
         {
             LogEntry entry = this.getEntry(index);
-            return (entry != null && entry.Term() == term);
+            return (entry != null && entry.Term == term);
         }
 
         // Retrieves a list of entries after a given index as well as the term of the
@@ -263,7 +280,7 @@ namespace CSharpRaft
                     term = this.startTerm;
                 }
 
-                DebugTrace.TraceLine("log.entriesAfter.partial: ", index, " ", this.entries[this.entries.Count - 1].Index());
+                DebugTrace.TraceLine("log.entriesAfter.partial: ", index, " ", this.entries[this.entries.Count - 1].Index);
 
                 entries = new List<LogEntry>();
                 for (int i = index - this.startIndex; i < this.entries.Count; i++)
@@ -277,7 +294,7 @@ namespace CSharpRaft
                 if (length < maxLogEntriesPerRequest)
                 {
                     // Determine the term at the given entry and return a subslice.
-                    term = this.entries[index - 1 - this.startIndex].Term();
+                    term = this.entries[index - 1 - this.startIndex].Term;
                 }
                 else
                 {
@@ -287,7 +304,7 @@ namespace CSharpRaft
                         newEntries.Add(entries[i]);
                     }
                     entries = newEntries;
-                    term = this.entries[index - 1 - this.startIndex].Term();
+                    term = this.entries[index - 1 - this.startIndex].Term;
                 }
             }
         }
@@ -320,8 +337,8 @@ namespace CSharpRaft
                 DebugTrace.DebugLine("commitInfo.get.[", this.commitIndex, "/", this.startIndex, "]");
 
                 LogEntry entry = this.entries[this.commitIndex - 1 - this.startIndex];
-                index = entry.Index();
-                term = entry.Term();
+                index = entry.Index;
+                term = entry.Term;
             }
         }
 
@@ -341,8 +358,8 @@ namespace CSharpRaft
 
                 // Return the last index & term
                 LogEntry entry = this.entries[this.entries.Count - 1];
-                index = entry.Index();
-                term = entry.Term();
+                index = entry.Index;
+                term = entry.Term;
             }
         }
 
@@ -401,10 +418,10 @@ namespace CSharpRaft
                     LogEntry entry = this.entries[entryIndex];
 
                     // Update commit index.
-                    this.commitIndex = entry.Index();
+                    this.commitIndex = entry.Index;
 
                     // Decode the command.
-                    Command command = Commands.newCommand(entry.CommandName(), entry.Command());
+                    Command command = Commands.newCommand(entry.CommandName, entry.Command);
 
                     // Apply the changes to the state machine and store the error code.
                     object returnValue = this.ApplyFunc(entry, command);
@@ -489,12 +506,12 @@ namespace CSharpRaft
                     // Do not truncate if the entry at index does not have the matching term.
                     LogEntry entry = this.entries[index - this.startIndex - 1];
 
-                    if (this.entries.Count > 0 && entry.Term() != term)
+                    if (this.entries.Count > 0 && entry.Term != term)
                     {
 
                         DebugTrace.DebugLine("log.truncate.termMismatch");
 
-                        throw new Exception(string.Format("raft.Log: Entry at index does not have matching term ({0}): (IDX={1}, TERM={2})", entry.Term(), index, term));
+                        throw new Exception(string.Format("raft.Log: Entry at index does not have matching term ({0}): (IDX={1}, TERM={2})", entry.Term, index, term));
                     }
 
                     // Otherwise truncate up to the desired entry.
@@ -571,13 +588,13 @@ namespace CSharpRaft
                 {
                     LogEntry lastEntry = this.entries[this.entries.Count - 1];
 
-                    if (entry.Term() < lastEntry.Term())
+                    if (entry.Term < lastEntry.Term)
                     {
-                        throw new Exception(string.Format("raft.Log: Cannot append entry with earlier term ({0}:{1} <= {2}:{3})", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
+                        throw new Exception(string.Format("raft.Log: Cannot append entry with earlier term ({0}:{1} <= {2}:{3})", entry.Term, entry.Index, lastEntry.Term, lastEntry.Index));
                     }
-                    else if (entry.Term() == lastEntry.Term() && entry.Index() <= lastEntry.Index())
+                    else if (entry.Term == lastEntry.Term && entry.Index <= lastEntry.Index)
                     {
-                        throw new Exception(string.Format("raft.Log: Cannot append entry with earlier index in the same term ({0}:{1} <= {2}:{3})", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
+                        throw new Exception(string.Format("raft.Log: Cannot append entry with earlier index in the same term ({0}:{1} <= {2}:{3})", entry.Term, entry.Index, lastEntry.Term, lastEntry.Index));
                     }
                 }
 
@@ -606,13 +623,13 @@ namespace CSharpRaft
             {
 
                 LogEntry lastEntry = this.entries[this.entries.Count - 1];
-                if (entry.Term() < lastEntry.Term())
+                if (entry.Term < lastEntry.Term)
                 {
-                    throw new Exception(string.Format("raft.Log: Cannot append entry with earlier term ({0}:{1} <= {2}:{3})", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
+                    throw new Exception(string.Format("raft.Log: Cannot append entry with earlier term ({0}:{1} <= {2}:{3})", entry.Term, entry.Index, lastEntry.Term, lastEntry.Index));
                 }
-                else if (entry.Term() == lastEntry.Term() && entry.Index() <= lastEntry.Index())
+                else if (entry.Term == lastEntry.Term && entry.Index <= lastEntry.Index)
                 {
-                    throw new Exception(string.Format("raft.Log: Cannot append entry with earlier index in the same term ({0}:{1} <= {2}:{3})", entry.Term(), entry.Index(), lastEntry.Term(), lastEntry.Index()));
+                    throw new Exception(string.Format("raft.Log: Cannot append entry with earlier index in the same term ({0}:{1} <= {2}:{3})", entry.Term, entry.Index, lastEntry.Term, lastEntry.Index));
                 }
             }
 
@@ -641,7 +658,7 @@ namespace CSharpRaft
                 // nothing to compaction
                 // the index may be greater than the current index if
                 // we just recovery from on snapshot
-                if (index >= this.internalCurrentIndex())
+                if (index >= this.internalCurrentIndex)
                 {
                     entries = new List<LogEntry>();
                 }
