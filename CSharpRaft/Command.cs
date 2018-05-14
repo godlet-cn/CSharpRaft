@@ -24,11 +24,14 @@ namespace CSharpRaft
     public interface CommandEncoder
     {
         bool Encode(Stream writer);
+
         bool Decode(Stream reader);
     }
 
-    // Join command
-    public class JoinCommand: Command
+    /// <summary>
+    /// Default Join command
+    /// </summary>
+    public class DefaultJoinCommand: Command
     {
         /// <summary>
         /// Node name
@@ -53,8 +56,10 @@ namespace CSharpRaft
         }
     }
 
-    // Leave command
-    public class LeaveCommand: Command
+    /// <summary>
+    /// Default Leave command
+    /// </summary>
+    public class DefaultLeaveCommand: Command
     {
         /// <summary>
         /// Node name

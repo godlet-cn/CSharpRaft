@@ -43,15 +43,29 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Flags.cs" />
+    <Compile Include="Handlers\JoinHttpHandler.cs" />
+    <Compile Include="Handlers\ReadWriteHttpHandler.cs" />
     <Compile Include="KeyValueDB.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Server.cs" />
     <Compile Include="WriteCommand.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\commandline-master\src\CommandLine\CommandLine.csproj">
+      <Project>{e1bd3c65-49c3-49e7-baba-c60980cb3f20}</Project>
+      <Name>CommandLine</Name>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\GodletRouter\GodletRouter\GodletRouter.csproj">
+      <Project>{fbd22b22-83af-4851-b676-89001d054658}</Project>
+      <Name>GodletRouter</Name>
+    </ProjectReference>
     <ProjectReference Include="..\CSharpRaft\CSharpRaft.csproj">
       <Project>{43f546cb-ee0f-4d99-a7e5-50f00718ec04}</Project>
       <Name>CSharpRaft</Name>
+      <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

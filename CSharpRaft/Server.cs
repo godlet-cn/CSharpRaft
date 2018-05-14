@@ -649,35 +649,6 @@ namespace CSharpRaft
             this.debugLine("server.loop.end");
         }
 
-        internal void sendAsync(object value)
-        {
-            if (!this.IsRunning)
-            {
-                return;
-            }
-
-            //event := &ev { target: value, c: make(chan error, 1)}
-            //// try a non-blocking send first
-            //// in most cases, this should not be blocking
-            //// avoid create unnecessary go routines
-            //select
-            //{
-            //    	case this.c < - event:
-            //    		return
-            //        default:
-            //    	}
-
-            //    this.routineGroup.Add(1)
-            //    	go func() {
-            //    defer this.routineGroup.Done()
-
-            //            select {
-            //    		case this.c < - event:
-            //    		case < -this.stopped:
-            //    		}
-            //}()
-        }
-
         // The event loop that is run when the server is in a Follower state.
         // Responds to RPCs from candidates and leaders.
         // Converts to candidate if election timeout elapses without either:
@@ -747,6 +718,7 @@ namespace CSharpRaft
                 //          // Converts to candidate if election timeout elapses without either:
                 //          //   1.Receiving valid AppendEntries RPC, or
                 //          //   2.Granting vote to candidate
+
                 if (update)
                 {
                     since = DateTime.Now;
@@ -912,22 +884,19 @@ namespace CSharpRaft
                 //{
                 //		case e := <-this.c:
                 //			switch req := e.target.(type) {
-
                 //			case *AppendEntriesRequest:
-
                 //                e.returnValue, _ = this.processAppendEntriesRequest(req)
                 //			case *AppendEntriesResponse:
                 //				this.processAppendEntriesResponse(req)
                 //			case *RequestVoteRequest:
-
                 //                e.returnValue, _ = this.processRequestVoteRequest(req)
-
                 //            }
 
                 //    // Callback to event.
                 //    e.c<- err
                 //}
             }
+
             this.syncedPeer = null;
         }
 
@@ -943,26 +912,17 @@ namespace CSharpRaft
 
                 //      var err error
                 //      select {
-                //case < -this.stopped:
-                //	this.setState(Stopped)
-
-                //          return
-
                 //case e:= < -this.c:
                 //	switch req := e.target.(type) {
-                //	case Command:
-                //              err = NotLeaderError
                 //	case *AppendEntriesRequest:
                 //		e.returnValue, _ = this.processAppendEntriesRequest(req)
                 //	case *RequestVoteRequest:
                 //		e.returnValue, _ = this.processRequestVoteRequest(req)
                 //	case *SnapshotRecoveryRequest:
                 //		e.returnValue = this.processSnapshotRecoveryRequest(req)
-
-                //          }
+                //  }
                 //          // Callback to event.
                 //          e.c < -err
-
                 //      }
             }
         }
@@ -978,11 +938,11 @@ namespace CSharpRaft
             switch (this.State)
             {
                 case ServerState.Follower:
-                    if (command is JoinCommand)
+                    if (command is DefaultJoinCommand)
                     {
                         //If no log entries exist and a self-join command is issued
                         //then immediately become leader and commit entry.
-                        if (this.log.currentIndex == 0 && (command as JoinCommand).Name == this.Name)
+                        if (this.log.currentIndex == 0 && (command as DefaultJoinCommand).Name == this.Name)
                         {
                             this.debugLine("self join and promote to leader");
                             this.setState(ServerState.Leader);

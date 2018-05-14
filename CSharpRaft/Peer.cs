@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Timers;
 
 namespace CSharpRaft
 {
@@ -13,7 +14,7 @@ namespace CSharpRaft
 
         internal Server server;
         
-        internal bool stopChan;
+        internal bool isStopped;
 
         internal int heartbeatInterval;
         
@@ -106,9 +107,14 @@ namespace CSharpRaft
         {
             lock (mutex)
             {
-                Peer peer = new Peer(this.Name, this.ConnectionString);
-                peer.prevLogIndex = this.prevLogIndex;
-                peer.lastActivity = this.lastActivity;
+                Peer peer = new Peer()
+                {
+                    Name = this.Name,
+                    ConnectionString = this.ConnectionString,
+
+                    prevLogIndex = this.prevLogIndex,
+                    lastActivity = this.lastActivity
+                };
 
                 return peer;
             }
@@ -118,80 +124,51 @@ namespace CSharpRaft
         // Heartbeat
         //--------------------------------------
 
+        private static Timer ticker;
         // Starts the peer heartbeat.
         internal void startHeartbeat()
         {
-            //this.stopChan = make(chan bool);
-
-            //c:= make(chan bool);
-
             this.LastActivity = DateTime.Now;
 
-            //this.server.routineGroup.Add(1)
+            ticker = new Timer(this.heartbeatInterval);
 
-            //go func()
-            //{
-            //    defer this.server.routineGroup.Done()
+            // Hook up the Elapsed event for the timer. 
+            ticker.Elapsed += Ticker_Elapsed;
+            ticker.AutoReset = true;
+            ticker.Enabled = true;
 
-            //    this.heartbeat(c)
-
-            //} ()
-            // < -c
+            DebugTrace.Debug("peer.heartbeat: ", this.Name, this.heartbeatInterval);
         }
 
         // Stops the peer heartbeat.
         internal void stopHeartbeat(bool flush)
         {
             this.LastActivity = DateTime.Now;
-            this.stopChan = flush;
+            this.isStopped = flush;
         }
 
+
         // Listens to the heartbeat timeout and flushes an AppendEntries RPC.
-        private void heartbeat(bool c)
+        private void Ticker_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
-            //          stopChan:= this.stopChan;
+            if (this.isStopped)
+            {
+                // before we can safely remove a node
+                // we must flush the remove command to the node first
+                this.flush();
 
+                DebugTrace.Debug("peer.heartbeat.stop.with.flush: ", this.Name);
 
-            //          c < -true;
+                ticker.Stop();
+                return;
+            }
 
+            DateTime start = DateTime.Now;
 
-            //          ticker:= time.Tick(this.heartbeatInterval);
+            this.flush();
 
-
-            //          DebugTrace.Debug("peer.heartbeat: ", this.Name, this.heartbeatInterval);
-
-            //  for {
-            //      select {
-            //case flush:= < -stopChan:
-            //	if flush {
-            //              // before we can safely remove a node
-            //              // we must flush the remove command to the node first
-            //              this.flush()
-
-            //              DebugTrace.Debug("peer.heartbeat.stop.with.flush: ", this.Name)
-
-            //              return
-
-            //          }
-            //          else
-            //          {
-            //              DebugTrace.Debug("peer.heartbeat.stop: ", this.Name)
-
-            //              return
-
-            //          }
-
-            //case < -ticker:
-            //	start:= time.Now()
-
-            //          this.flush()
-
-            //          duration:= time.Now().Sub(start)
-
-            //          this.server.DispatchEvent(newEvent(HeartbeatEventType, duration, null))
-
-            //      }
-            //}
+            TimeSpan duration = DateTime.Now - start;
+            this.server.DispatchHeartbeatEvent(new RaftEventArgs(duration, null));
         }
 
         private void flush()
@@ -226,15 +203,13 @@ namespace CSharpRaft
         {
             DebugTrace.Trace("peer.append.send: {0}->{1} [prevLog:{2} length: {3}]\n",
                 this.server.Name, this.Name, req.PrevLogIndex, req.Entries.Count);
-
-
+            
             var resp = this.server.Transporter.SendAppendEntriesRequest(this.server, this, req);
 
             if (resp == null)
             {
                 this.server.DispatchHeartbeatIntervalEvent(new RaftEventArgs(this, null));
                 DebugTrace.Debug("peer.append.timeout: ", this.server.Name, "->", this.Name);
-
                 return;
             }
             DebugTrace.TraceLine("peer.append.resp: ", this.server.Name, "<-", this.Name);
@@ -297,19 +272,15 @@ namespace CSharpRaft
                         if (this.prevLogIndex > resp.Index)
                         {
                             this.prevLogIndex = resp.Index;
-
                         };
 
                         DebugTrace.Debug("peer.append.resp.decrement: ", this.Name, "; idx =", this.prevLogIndex);
-
                     }
                 }
             }
 
             // Attach the peer to resp, thus server can know where it comes from
             resp.peer = this.Name;
-            // Send response to server for processing.
-            this.server.sendAsync(resp);
         }
 
         // Sends an Snapshot request to the peer through the transport.
@@ -330,6 +301,7 @@ namespace CSharpRaft
             //If successful, the peer should have been to snapshot state
             //Send it the snapshot!
             this.LastActivity = DateTime.Now;
+
             if (resp.Success)
             {
                 this.sendSnapshotRecoveryRequest();
@@ -367,7 +339,6 @@ namespace CSharpRaft
                 DebugTrace.Debug("peer.snap.recovery.failed: ", this.Name);
                 return;
             }
-            this.server.sendAsync(resp);
         }
 
         //--------------------------------------

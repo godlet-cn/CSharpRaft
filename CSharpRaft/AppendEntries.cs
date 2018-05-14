@@ -80,6 +80,7 @@ namespace CSharpRaft
         internal protobuf.AppendEntriesResponse pb;
 
         internal string peer;
+
         internal bool append;
         
         // Creates a new AppendEntries response.

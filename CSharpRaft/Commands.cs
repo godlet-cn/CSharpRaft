@@ -17,8 +17,8 @@ namespace CSharpRaft
             commandTypes = new Dictionary<string, Command>();
 
             Commands.RegisterCommand(new NOPCommand());
-            Commands.RegisterCommand(new JoinCommand());
-            Commands.RegisterCommand(new LeaveCommand());
+            Commands.RegisterCommand(new DefaultJoinCommand());
+            Commands.RegisterCommand(new DefaultLeaveCommand());
         }
 
         /// <summary>
@@ -75,6 +75,4 @@ namespace CSharpRaft
             commandTypes[command.CommandName] = command;
         }
     }
-
-
 }
