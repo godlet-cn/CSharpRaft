@@ -34,6 +34,15 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="CommandLine, Version=2.0.19.0, Culture=neutral, PublicKeyToken=de6f01bd326f8c32, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>Libs\CommandLine.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="GodletRouter, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\GodletRouter.1.0.0\lib\net452\GodletRouter.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -53,20 +62,14 @@
     <Compile Include="WriteCommand.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\commandline-master\src\CommandLine\CommandLine.csproj">
-      <Project>{e1bd3c65-49c3-49e7-baba-c60980cb3f20}</Project>
-      <Name>CommandLine</Name>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\GodletRouter\GodletRouter\GodletRouter.csproj">
-      <Project>{fbd22b22-83af-4851-b676-89001d054658}</Project>
-      <Name>GodletRouter</Name>
-    </ProjectReference>
     <ProjectReference Include="..\CSharpRaft\CSharpRaft.csproj">
       <Project>{43f546cb-ee0f-4d99-a7e5-50f00718ec04}</Project>
       <Name>CSharpRaft</Name>
       <Private>True</Private>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
