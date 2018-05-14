@@ -1,4 +1,5 @@
 ﻿using System;
+
 namespace CSharpRaft
 {
     public interface StateMachine

@@ -16,6 +16,11 @@ namespace CSharpRaft
 
         public string CandidateName { get; set; }
 
+        public RequestVoteRequest()
+        {
+
+        }
+
         public RequestVoteRequest(int term, string candidateName, int lastLogIndex, int lastLogTerm)
         {
             this.Term = term;
@@ -60,6 +65,10 @@ namespace CSharpRaft
 
         public bool VoteGranted { get; set; }
 
+        public RequestVoteResponse()
+        {
+
+        }
 
         // Creates a new RequestVote response.
         public RequestVoteResponse(int term, bool voteGranted)

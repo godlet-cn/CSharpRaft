@@ -8,7 +8,7 @@ namespace CSharpRaft
     public static class ConfigHelper
     {
         /// <summary>
-        /// write server's configuration to file.
+        /// Write server's configuration to file.
         /// </summary>
         /// <param name="server"></param>
         public static void WriteConfig(Server server)

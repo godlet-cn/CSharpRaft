@@ -1,30 +1,32 @@
-﻿using System;
+﻿using CSharpRaft.Transport;
+using System;
+using System.Threading.Tasks;
 
 namespace CSharpRaft.Test
 {
-    class TestTransporter : Transporter
+    class TestTransporter : ITransporter
     {
-        public Func<Server, Peer, RequestVoteRequest, RequestVoteResponse> SendVoteRequestFunc;
-        public Func<Server, Peer, AppendEntriesRequest, AppendEntriesResponse> SendAppendEntriesRequestFunc;
-        public Func<Server, Peer, SnapshotRequest, SnapshotResponse> SendSnapshotRequestFunc;
-        public Func<Server, Peer, SnapshotRecoveryRequest, SnapshotRecoveryResponse> SendSnapshotRecoveryRequestFunc;
+        public Func<Server, Peer, RequestVoteRequest, Task<RequestVoteResponse>> SendVoteRequestFunc;
+        public Func<Server, Peer, AppendEntriesRequest, Task<AppendEntriesResponse>> SendAppendEntriesRequestFunc;
+        public Func<Server, Peer, SnapshotRequest, Task<SnapshotResponse>> SendSnapshotRequestFunc;
+        public Func<Server, Peer, SnapshotRecoveryRequest, Task<SnapshotRecoveryResponse>> SendSnapshotRecoveryRequestFunc;
 
-        public RequestVoteResponse SendVoteRequest(Server server, Peer peer, RequestVoteRequest req)
-        {
-            return SendVoteRequestFunc(server, peer, req);
-        }
-
-        public AppendEntriesResponse SendAppendEntriesRequest(Server server, Peer peer, AppendEntriesRequest req)
+        Task<AppendEntriesResponse> ITransporter.SendAppendEntriesRequest(Server server, Peer peer, AppendEntriesRequest req)
         {
             return SendAppendEntriesRequestFunc(server, peer, req);
         }
 
-        public SnapshotResponse SendSnapshotRequest(Server server, Peer peer, SnapshotRequest req)
+        Task<RequestVoteResponse> ITransporter.SendVoteRequest(Server server, Peer peer, RequestVoteRequest req)
+        {
+            return SendVoteRequestFunc(server, peer, req);
+        }
+
+        Task<SnapshotResponse> ITransporter.SendSnapshotRequest(Server server, Peer peer, SnapshotRequest req)
         {
             return SendSnapshotRequestFunc(server, peer, req);
         }
 
-        public SnapshotRecoveryResponse SendSnapshotRecoveryRequest(Server server, Peer peer, SnapshotRecoveryRequest req)
+        Task<SnapshotRecoveryResponse> ITransporter.SendSnapshotRecoveryRequest(Server server, Peer peer, SnapshotRecoveryRequest req)
         {
             return SendSnapshotRecoveryRequestFunc(server, peer, req);
         }

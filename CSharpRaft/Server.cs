@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CSharpRaft.Transport;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -43,7 +44,7 @@ namespace CSharpRaft
         /// <param name="stateMachine">stateMachine can be null if snapshotting and log compaction is to be disabled.</param>
         /// <param name="context">context can be anything (including null) and is not used by the raft package except returned by Server.Context().</param>
         /// <param name="connectionString">connectionString can be anything.</param>
-        public Server(string name, string path, Transporter transporter, StateMachine stateMachine, object context, string connectionString)
+        public Server(string name, string path, ITransporter transporter, StateMachine stateMachine, object context, string connectionString)
         {
             if (string.IsNullOrEmpty(name))
             {
@@ -173,11 +174,11 @@ namespace CSharpRaft
             }
         }
 
-        private Transporter transporter;
+        private ITransporter transporter;
         /// <summary>
         /// The object that transports requests.
         /// </summary>
-        public Transporter Transporter
+        public ITransporter Transporter
         {
             get
             {

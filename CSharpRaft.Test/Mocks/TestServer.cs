@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CSharpRaft.Transport;
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -15,7 +16,7 @@ namespace CSharpRaft.Test.Mocks
         public const int TestHeartbeatInterval = 50;
         public const int TestElectionTimeout = 200;
 
-        public static Server NewTestServer(string name, Transporter transporter,StateMachine statemachine=null)
+        public static Server NewTestServer(string name, ITransporter transporter,StateMachine statemachine=null)
         {
             string path = Path.Combine(Path.GetTempPath(), "raft-server-");
             if (!Directory.Exists(path))
@@ -36,12 +37,12 @@ namespace CSharpRaft.Test.Mocks
             return server;
         }
 
-        public static Server NewTestServerWithPath(string name, Transporter transporter, string path)
+        public static Server NewTestServerWithPath(string name, ITransporter transporter, string path)
         {
             return new Server(name, path, transporter, null, null, "");
         }
 
-        public static Server NewTestServerWithLog(string name, Transporter transporter, List<LogEntry> entries)
+        public static Server NewTestServerWithLog(string name, ITransporter transporter, List<LogEntry> entries)
         {
             Server server = NewTestServer(name, transporter);
             string logPath = server.LogPath;
@@ -55,7 +56,7 @@ namespace CSharpRaft.Test.Mocks
             return server;
         }
 
-        public static List<Server> NewTestCluster(List<string> names, Transporter transporter, Dictionary<string, Server> lookup)
+        public static List<Server> NewTestCluster(List<string> names, ITransporter transporter, Dictionary<string, Server> lookup)
         {
             List<Server> servers = new List<Server>();
 

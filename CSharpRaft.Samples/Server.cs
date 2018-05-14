@@ -1,5 +1,5 @@
 ﻿using CSharpRaft.Samples.Handlers;
-using GodletRouter;
+using Router;
 using System;
 using System.IO;
 using System.Text;
@@ -56,10 +56,10 @@ namespace CSharpRaft.Samples
         {
             CSharpRaft.DebugTrace.DebugLine("Initializing Raft Server: " + this.path);
 
-            var transporter = new CSharpRaft.HttpTransporter();
+            var transporter = new CSharpRaft.Transport.HttpTransporter();
 
             this.raftServer = new CSharpRaft.Server(this.name, this.path, transporter, null, db, "");
-
+           
             this.raftServer.Start();
 
             if (string.IsNullOrEmpty(leader) == false)
@@ -92,6 +92,12 @@ namespace CSharpRaft.Samples
             this.httpServer = new HttpServer();
             this.httpServer.AddHandler("/db/key", new ReadWriteHttpHandler());
             this.httpServer.AddHandler("/join", new JoinHttpHandler());
+
+            transporter.Install(this.raftServer,(pattern,handler)=>
+            {
+                this.httpServer.AddHandler(pattern, handler);
+            });
+
             this.httpServer.Start(this.host, this.port);
         }
         

@@ -1,4 +1,5 @@
 ﻿using ProtoBuf;
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -18,6 +19,10 @@ namespace CSharpRaft
         public string LeaderName { get; set; }
 
         public List<protobuf.LogEntry> Entries { get; set; }
+
+        public AppendEntriesRequest() {
+
+        }
 
         // Creates a new AppendEntries request.
         public AppendEntriesRequest(int term, int prevLogIndex, int prevLogTerm,
@@ -42,17 +47,24 @@ namespace CSharpRaft
         // written and any error that may have occurred.
         public void Encode(Stream stream)
         {
-            protobuf.AppendEntriesRequest pb = new protobuf.AppendEntriesRequest()
+            try
             {
-                Term = (uint)this.Term,
-                PrevLogIndex = (uint)this.PrevLogIndex,
-                PrevLogTerm = (uint)this.PrevLogTerm,
-                CommitIndex = (uint)this.CommitIndex,
-                LeaderName = this.LeaderName,
-                Entries = this.Entries,
-            };
+                protobuf.AppendEntriesRequest pb = new protobuf.AppendEntriesRequest()
+                {
+                    Term = (uint)this.Term,
+                    PrevLogIndex = (uint)this.PrevLogIndex,
+                    PrevLogTerm = (uint)this.PrevLogTerm,
+                    CommitIndex = (uint)this.CommitIndex,
+                    LeaderName = this.LeaderName,
+                    Entries = this.Entries,
+                };
 
-            Serializer.Serialize<protobuf.AppendEntriesRequest>(stream, pb);
+                Serializer.Serialize<protobuf.AppendEntriesRequest>(stream, pb);
+            }
+            catch (Exception err)
+            {
+                DebugTrace.TraceLine("transporter.ae.encoding.error:" + err);
+            }
         }
 
         // Decodes the AppendEntriesRequest from a buffer. Returns the number of bytes read and
@@ -82,7 +94,12 @@ namespace CSharpRaft
         internal string peer;
 
         internal bool append;
-        
+
+        public AppendEntriesResponse()
+        {
+
+        }
+
         // Creates a new AppendEntries response.
         public AppendEntriesResponse(int term, bool success, int index, int commitIndex)
         {

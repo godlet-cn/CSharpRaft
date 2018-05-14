@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CSharpRaft
 {
@@ -23,21 +19,4 @@ namespace CSharpRaft
         public object Value;
         public object PrevValue;
     }
-
-    //public delegate void ValueChangedEventHandler(object sender, ValueChangedEventArgs e);
-    //public class ValueChangedEventArgs : EventArgs
-    //{
-    //    public ValueChangedEventArgs()
-    //    {
-
-    //    }
-    //    public ValueChangedEventArgs(object value, object prevValue)
-    //    {
-    //        this.Value = value;
-    //        this.PrevValue = prevValue;
-    //    }
-
-    //    public object Value;
-    //    public object PrevValue;
-    //}
 }

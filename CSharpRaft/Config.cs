@@ -2,7 +2,6 @@
 
 namespace CSharpRaft
 {
-
     /// <summary>
     /// The configuration of server
     /// </summary>

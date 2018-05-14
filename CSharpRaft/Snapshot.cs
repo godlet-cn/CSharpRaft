@@ -136,6 +136,11 @@ namespace CSharpRaft
         public bool Success { get; set; }
         public int CommitIndex { get; set; }
 
+        public SnapshotRecoveryResponse()
+        {
+
+        }
+
         // Creates a new Snapshot response.
         public SnapshotRecoveryResponse(int term, bool success, int commitIndex)
         {
@@ -225,6 +230,10 @@ namespace CSharpRaft
     {
         public bool Success { get; set; }
 
+        public SnapshotResponse()
+        {
+
+        }
         // Creates a new Snapshot response.
         public SnapshotResponse(bool success)
         {

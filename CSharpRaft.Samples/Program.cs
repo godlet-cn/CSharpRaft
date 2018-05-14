@@ -31,6 +31,7 @@ namespace CSharpRaft.Samples
             else
             {
                 Flags.PrintUsage();
+                return;
             }
 
             if (trace)
@@ -73,7 +74,5 @@ namespace CSharpRaft.Samples
                 Console.WriteLine("please type 'exit' or 'quit' to exit this application...");
             }
         }
-
-
     }
 }

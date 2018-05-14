@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using CSharpRaft.Transport;
+using System.Collections.Generic;
 
 namespace CSharpRaft
 {
@@ -38,7 +39,7 @@ namespace CSharpRaft
 
         int HeartbeatInterval { get; set; }
 
-        Transporter Transporter { get; set; }
+        ITransporter Transporter { get; set; }
 
         bool IsRunning { get; }
 

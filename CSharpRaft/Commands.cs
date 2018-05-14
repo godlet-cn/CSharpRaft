@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -33,11 +34,10 @@ namespace CSharpRaft
             Command command = commandTypes[name];
             if (command == null)
             {
-                throw new System.Exception("raft.Command: Unregistered command type:" + name);
-
+                throw new Exception("raft.Command: Unregistered command type:" + name);
             }
 
-            var copy = System.Activator.CreateInstance(command.GetType());
+            var copy = Activator.CreateInstance(command.GetType());
             if (command is CommandEncoder)
             {
                 using (MemoryStream ms = new MemoryStream())
@@ -63,16 +63,7 @@ namespace CSharpRaft
         /// <param name="command"></param>
         public static void RegisterCommand(Command command)
         {
-            if (command == null)
-            {
-                throw new System.Exception("raft: Cannot register nil");
-            }
-            else if (commandTypes.ContainsKey(command.CommandName) 
-                &&commandTypes[command.CommandName] != null)
-            {
-                throw new System.Exception("raft: Duplicate registration: " + command.CommandName);
-            }
-            commandTypes[command.CommandName] = command;
+            commandTypes[command.CommandName] = command ?? throw new Exception("raft: Cannot register null");
         }
     }
 }
