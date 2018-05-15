@@ -53,7 +53,7 @@ namespace CSharpRaft.Command
                 ms.Write(data, 0, data.Length);
                 ms.Flush();
                 ms.Seek(0, SeekOrigin.Begin);
-                command.Decode(ms);
+                (copy as ICommand).Decode(ms);
             }
 
             return copy as ICommand;

@@ -7,6 +7,7 @@ namespace CSharpRaft.Transport
     class AppendEntriesHttpHandler:AbstractHttpHandler
     {
         private Server server;
+
         public AppendEntriesHttpHandler(Server server)
         {
             this.server = server;

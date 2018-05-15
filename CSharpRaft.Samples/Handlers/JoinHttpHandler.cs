@@ -1,7 +1,7 @@
 ﻿using CSharpRaft.Command;
 using CSharpRaft.Router;
 using System.Net;
-
+using System.IO;
 namespace CSharpRaft.Samples.Handlers
 {
     class JoinHttpHandler : AbstractHttpHandler
@@ -18,9 +18,28 @@ namespace CSharpRaft.Samples.Handlers
             try
             {
                 DefaultJoinCommand command = new DefaultJoinCommand();
-                command.Decode(req.InputStream);
 
-                server.Do(command);
+                //using (StreamReader sr = new StreamReader(req.InputStream))
+                //{
+                //    string input = sr.ReadToEnd();
+                //    using (MemoryStream ms = new MemoryStream())
+                //    {
+                       
+
+
+                //    }
+                //}
+
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    req.InputStream.CopyTo(ms);
+                    ms.Flush();
+                    ms.Seek(0,SeekOrigin.Begin);
+
+                    command.Decode(ms);
+
+                    server.Do(command);
+                }   
             }
             catch (System.Exception err)
             {

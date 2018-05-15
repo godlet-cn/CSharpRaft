@@ -119,8 +119,6 @@ namespace CSharpRaft
                 ms.Seek(0, SeekOrigin.Begin);
 
                 this.pb = Serializer.Deserialize<protobuf.LogEntry>(ms);
-
-
             }
         }
 

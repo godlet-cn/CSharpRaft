@@ -121,19 +121,20 @@ namespace CSharpRaft.Samples
         {
             DefaultJoinCommand cmd = new DefaultJoinCommand()
             {
-                Name=this.raftServer.Name,
-                ConnectionString=this.connectionString()
+                Name = this.raftServer.Name,
+                ConnectionString = this.connectionString()
             };
 
             using (MemoryStream ms = new MemoryStream())
             {
                 cmd.Encode(ms);
                 ms.Flush();
+                ms.Seek(0,SeekOrigin.Begin);
 
                 HttpClient client = new HttpClient();
                 HttpContent content = new StreamContent(ms);
 
-                HttpResponseMessage resp = await client.PostAsync(string.Format("{0}/join", leader), content);
+                HttpResponseMessage resp = await client.PostAsync(string.Format("http://{0}/join", leader), content);
                 if (resp != null)
                 {
 

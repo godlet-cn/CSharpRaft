@@ -12,9 +12,9 @@ namespace CSharpRaft
 
     public static class DebugTrace
     {
-        public static TextWriter LogWriter;
+        public static TextWriter LogWriter { get; set; }
 
-        public static LogLevel Level;
+        public static LogLevel Level { get; set; }
 
         static DebugTrace()
         {
