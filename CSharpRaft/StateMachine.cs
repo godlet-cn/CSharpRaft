@@ -2,7 +2,7 @@
 
 namespace CSharpRaft
 {
-    public interface StateMachine
+    public interface IStateMachine
     {
         byte[] Save();
 
@@ -10,7 +10,7 @@ namespace CSharpRaft
     }
 
 
-    public class DefaultStateMachine : StateMachine
+    public class DefaultStateMachine : IStateMachine
     {
         public void Recovery(byte[] bytes)
         {

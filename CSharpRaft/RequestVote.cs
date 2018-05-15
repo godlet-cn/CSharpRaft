@@ -3,7 +3,9 @@ using System.IO;
 
 namespace CSharpRaft
 {
-    // The request sent to a server to vote for a candidate to become a leader.
+    /// <summary>
+    /// The request sent to a server to vote for a candidate to become a leader.
+    /// </summary>
     public class RequestVoteRequest
     {
         internal Peer peer;
@@ -55,7 +57,9 @@ namespace CSharpRaft
         }
     }
 
-    // The response returned from a server after a vote for a candidate to become a leader.
+    /// <summary>
+    /// The response returned from a server after a vote for a candidate to become a leader.
+    /// </summary>
     public class RequestVoteResponse
     {
 

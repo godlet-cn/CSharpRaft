@@ -1,22 +1,21 @@
-﻿using CSharpRaft.Test.Mocks;
+﻿using CSharpRaft.Command;
+using CSharpRaft.Test.Mocks;
 using NUnit.Framework;
 using Rhino.Mocks;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace CSharpRaft.Test
 {
     [TestFixture]
     class SnapshotTest
     {
-        public void runServerWithMockStateMachine(ServerState state, Action<Server, StateMachine> fn)
+        public void runServerWithMockStateMachine(ServerState state, Action<Server, IStateMachine> fn)
         {
             MockRepository mocks = new MockRepository();
-            StateMachine m = mocks.DynamicMock<StateMachine>();
+            IStateMachine m = mocks.DynamicMock<IStateMachine>();
             Server s = TestServer.NewTestServer("1", new TestTransporter(), m);
             try
             {

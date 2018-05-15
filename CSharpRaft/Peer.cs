@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Timers;
 
 namespace CSharpRaft
@@ -12,11 +13,11 @@ namespace CSharpRaft
 
         public string ConnectionString { get; set; }
 
-        internal Server server;
+        private Server server;
 
-        internal bool isStopped;
+        private bool isStopped;
 
-        internal int heartbeatInterval;
+        private int heartbeatInterval;
 
         private readonly object mutex = new object();
 
@@ -45,11 +46,6 @@ namespace CSharpRaft
 
         #region Properties
 
-        // Sets the heartbeat timeout.
-        public void setHeartbeatInterval(int duration)
-        {
-            this.heartbeatInterval = duration;
-        }
 
         //--------------------------------------
         // Prev log index
@@ -100,6 +96,15 @@ namespace CSharpRaft
         #endregion
 
         #region Methods
+
+        /// <summary>
+        /// Sets the heartbeat timeout.
+        /// </summary>
+        /// <param name="duration"></param>
+        public void SetHeartbeatInterval(int duration)
+        {
+            this.heartbeatInterval = duration;
+        }
 
         // Clones the state of the peer. The clone is not attached to a server and
         // the heartbeat timer will not exist.
@@ -345,27 +350,23 @@ namespace CSharpRaft
         // Vote Requests
         //--------------------------------------
         // send VoteRequest Request
-        private void sendVoteRequest(RequestVoteRequest req, RequestVoteResponse c)
+        internal Task<RequestVoteResponse> sendVoteRequest(RequestVoteRequest req)
         {
             DebugTrace.Debug("peer.vote: ", this.server.Name, "->", this.Name);
-
             req.peer = this;
-
             var resp = this.server.Transporter.SendVoteRequest(this.server, this, req);
             if (resp != null)
             {
                 DebugTrace.Debug("peer.vote.recv: ", this.server.Name, "<-", this.Name);
-
                 this.LastActivity = DateTime.Now;
-
                 resp.Result.peer = this;
-
-                c = resp.Result;
             }
             else
             {
                 DebugTrace.Debug("peer.vote.failed: ", this.server.Name, "<-", this.Name);
+                return null;
             }
+            return resp;
         }
         
         #endregion

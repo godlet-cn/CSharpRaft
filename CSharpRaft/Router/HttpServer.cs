@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Net;
 
-namespace Router
+namespace CSharpRaft.Router
 {
     public class HttpServer
     {

@@ -1,8 +1,11 @@
-﻿using CSharpRaft;
+﻿using System;
+using System.IO;
+using CSharpRaft;
+using CSharpRaft.Command;
 
 namespace CSharpRaft.Test.Mocks
 {
-    class Command1 : Command
+    class Command1 : ICommand
     {
         public string Val { get; set; }
 
@@ -15,6 +18,16 @@ namespace CSharpRaft.Test.Mocks
 
         public object Apply(IContext context) {
             return null;
+        }
+
+        public bool Encode(Stream writer)
+        {
+            return false;
+        }
+
+        public bool Decode(Stream reader)
+        {
+            return false;
         }
     }
 }

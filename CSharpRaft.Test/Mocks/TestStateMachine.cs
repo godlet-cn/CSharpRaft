@@ -2,7 +2,7 @@
 
 namespace CSharpRaft.Test.Mocks
 {
-    class TestStateMachine : StateMachine
+    class TestStateMachine : IStateMachine
     {
         public Func<byte[]> SaveFunc;
         public Action<byte[]> RecoveryFunc;

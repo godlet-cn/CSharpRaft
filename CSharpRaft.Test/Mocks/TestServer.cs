@@ -1,4 +1,5 @@
-﻿using CSharpRaft.Transport;
+﻿using CSharpRaft.Command;
+using CSharpRaft.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,7 +17,7 @@ namespace CSharpRaft.Test.Mocks
         public const int TestHeartbeatInterval = 50;
         public const int TestElectionTimeout = 200;
 
-        public static Server NewTestServer(string name, ITransporter transporter,StateMachine statemachine=null)
+        public static Server NewTestServer(string name, ITransporter transporter,IStateMachine statemachine=null)
         {
             string path = Path.Combine(Path.GetTempPath(), "raft-server-");
             if (!Directory.Exists(path))

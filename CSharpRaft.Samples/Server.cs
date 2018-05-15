@@ -1,8 +1,11 @@
-﻿using CSharpRaft.Samples.Handlers;
-using Router;
+﻿using CSharpRaft.Command;
+using CSharpRaft.Samples.Handlers;
+using CSharpRaft.Router;
 using System;
 using System.IO;
+using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace CSharpRaft.Samples
 {
@@ -70,16 +73,13 @@ namespace CSharpRaft.Samples
                 {
                     throw new Exception("Cannot join with an existing log");
                 }
-                if (this.Join(leader) == false)
-                {
-                    throw new Exception("Join leader Failed");
-                }
+                this.Join(leader);
             }
             else if (this.raftServer.IsLogEmpty)
             {
                 // Initialize the server by joining itself.
                 CSharpRaft.DebugTrace.DebugLine("Initializing new cluster");
-                this.raftServer.Do(new CSharpRaft.DefaultJoinCommand()
+                this.raftServer.Do(new DefaultJoinCommand()
                 {
                     Name = this.raftServer.Name,
                     ConnectionString = this.connectionString(),
@@ -90,8 +90,8 @@ namespace CSharpRaft.Samples
             Console.WriteLine("Listening at:" + connectionString());
 
             this.httpServer = new HttpServer();
-            this.httpServer.AddHandler("/db/key", new ReadWriteHttpHandler());
-            this.httpServer.AddHandler("/join", new JoinHttpHandler());
+            this.httpServer.AddHandler("/db/key", new ReadWriteHttpHandler(this.raftServer));
+            this.httpServer.AddHandler("/join", new JoinHttpHandler(this.raftServer));
 
             transporter.Install(this.raftServer,(pattern,handler)=>
             {
@@ -117,9 +117,28 @@ namespace CSharpRaft.Samples
             }
         }
 
-        private bool Join(string leader)
+        private async void Join(string leader)
         {
-            return true;
+            DefaultJoinCommand cmd = new DefaultJoinCommand()
+            {
+                Name=this.raftServer.Name,
+                ConnectionString=this.connectionString()
+            };
+
+            using (MemoryStream ms = new MemoryStream())
+            {
+                cmd.Encode(ms);
+                ms.Flush();
+
+                HttpClient client = new HttpClient();
+                HttpContent content = new StreamContent(ms);
+
+                HttpResponseMessage resp = await client.PostAsync(string.Format("{0}/join", leader), content);
+                if (resp != null)
+                {
+
+                }
+            }
         }
     }
 }

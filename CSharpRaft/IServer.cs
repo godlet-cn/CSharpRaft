@@ -1,4 +1,5 @@
-﻿using CSharpRaft.Transport;
+﻿using CSharpRaft.Command;
+using CSharpRaft.Transport;
 using System.Collections.Generic;
 
 namespace CSharpRaft
@@ -9,7 +10,7 @@ namespace CSharpRaft
 
         object Context { get; }
 
-        StateMachine StateMachine { get; }
+        IStateMachine StateMachine { get; }
 
         string Leader { get; }
 
@@ -49,7 +50,7 @@ namespace CSharpRaft
 
         void Stop();
 
-        object Do(Command command);
+        object Do(ICommand command);
 
         AppendEntriesResponse AppendEntries(AppendEntriesRequest req);
 

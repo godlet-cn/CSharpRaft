@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Net;
 
-namespace Router
+namespace CSharpRaft.Router
 {
     public class HttpRouter : IHttpHandler, IRouter
     {

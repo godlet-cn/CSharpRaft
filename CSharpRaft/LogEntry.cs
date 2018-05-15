@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using CSharpRaft.Command;
+using Newtonsoft.Json;
 using ProtoBuf;
 using System;
 using System.IO;
@@ -24,7 +25,7 @@ namespace CSharpRaft
         }
 
         // Creates a new log entry associated with a log.
-        public LogEntry(Log log, int index, int term, Command command)
+        public LogEntry(Log log, int index, int term, ICommand command)
         {
             using (MemoryStream ms = new MemoryStream())
             {
@@ -32,18 +33,10 @@ namespace CSharpRaft
                 if (command != null)
                 {
                     commandName = command.CommandName;
-                    if (command is CommandEncoder)
-                    {
-                        (command as CommandEncoder).Encode(ms);
-                    }
-                    else
-                    {
-                        string strCmd= JsonConvert.SerializeObject(command);
 
-                        byte[] cmdData = UTF8Encoding.UTF8.GetBytes(strCmd);
-                        ms.Write(cmdData,0,cmdData.Length);
-                    }
-
+                    command.Encode(ms);
+                    ms.Flush();
+                   
                     this.pb = new protobuf.LogEntry()
                     {
                         Index = (uint)index,
@@ -126,6 +119,8 @@ namespace CSharpRaft
                 ms.Seek(0, SeekOrigin.Begin);
 
                 this.pb = Serializer.Deserialize<protobuf.LogEntry>(ms);
+
+
             }
         }
 

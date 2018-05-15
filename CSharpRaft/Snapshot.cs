@@ -7,7 +7,9 @@ using System.Text;
 
 namespace CSharpRaft
 {
-    // Snapshot represents an in-memory representation of the current state of the system.
+    /// <summary>
+    /// Snapshot represents an in-memory representation of the current state of the system.
+    /// </summary>
     public class Snapshot
     {
         public int LastIndex { get; set; }
@@ -58,7 +60,9 @@ namespace CSharpRaft
         }
     }
 
-    // The request sent to a server to start from the snapshot.
+    /// <summary>
+    /// The request sent to a server to start from the snapshot.
+    /// </summary>
     public class SnapshotRecoveryRequest
     {
         public string LeaderName { get; set; }
@@ -128,7 +132,9 @@ namespace CSharpRaft
         }
     }
 
-    // The response returned from a server appending entries to the log.
+    /// <summary>
+    /// The response returned from a server appending entries to the log.
+    /// </summary>
     public class SnapshotRecoveryResponse
     {
         public int Term { get; set; }
@@ -176,7 +182,9 @@ namespace CSharpRaft
         }
     }
 
-    // The request sent to a server to start from the snapshot.
+    /// <summary>
+    /// The request sent to a server to start from the snapshot.
+    /// </summary>
     public class SnapshotRequest
     {
         public string LeaderName { get; set; }
@@ -225,7 +233,9 @@ namespace CSharpRaft
         }
     }
 
-    // The response returned if the follower entered snapshot state
+    /// <summary>
+    /// The response returned if the follower entered snapshot state
+    /// </summary>
     public class SnapshotResponse
     {
         public bool Success { get; set; }

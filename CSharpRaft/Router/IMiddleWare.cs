@@ -1,4 +1,4 @@
-﻿namespace Router
+﻿namespace CSharpRaft.Router
 {
     /// <summary>
     /// IMiddleWare receives an http.Handler and returns another http.Handler.

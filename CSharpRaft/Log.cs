@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CSharpRaft.Command;
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -6,7 +7,7 @@ namespace CSharpRaft
 {
     public class Log
     {
-        public Func<LogEntry, Command, object> ApplyFunc;
+        public Func<LogEntry, ICommand, object> ApplyFunc;
 
         private FileStream file;
 
@@ -164,7 +165,7 @@ namespace CSharpRaft
 
                     if (entry.Index <= this.commitIndex)
                     {
-                        Command command = Commands.NewCommand(entry.CommandName, entry.Command);
+                        ICommand command = Commands.NewCommand(entry.CommandName, entry.Command);
                         this.ApplyFunc(entry, command);
                     }
                     DebugTrace.DebugLine("open.log.append log index ", entry.Index);
@@ -202,7 +203,7 @@ namespace CSharpRaft
         //--------------------------------------
 
         // Creates a log entry associated with this log.
-        internal LogEntry createEntry(int term, Command command)
+        internal LogEntry createEntry(int term, ICommand command)
         {
             return new LogEntry(this,this.nextIndex, term, command);
         }
@@ -401,12 +402,12 @@ namespace CSharpRaft
                     this.commitIndex = entry.Index;
 
                     // Decode the command.
-                    Command command = Commands.NewCommand(entry.CommandName, entry.Command);
+                    ICommand command = Commands.NewCommand(entry.CommandName, entry.Command);
 
                     // Apply the changes to the state machine and store the error code.
                     object returnValue = this.ApplyFunc(entry, command);
 
-                    DebugTrace.Debug("setCommitIndex.set.result index: {0}, entries index: {1}", i, entryIndex);
+                    DebugTrace.DebugLine(string.Format("raft.Log.setCommitIndex.set.result index: {0}, entries index: {1}", i, entryIndex));
 
                     // we can only commit up to the most recent join command
                     // if there is a join in this batch of commands.

@@ -1,8 +1,11 @@
-﻿using CSharpRaft.Transport;
+﻿using CSharpRaft.Command;
+using CSharpRaft.Serialize;
+using CSharpRaft.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using System.Timers;
 
 namespace CSharpRaft
 {
@@ -44,7 +47,7 @@ namespace CSharpRaft
         /// <param name="stateMachine">stateMachine can be null if snapshotting and log compaction is to be disabled.</param>
         /// <param name="context">context can be anything (including null) and is not used by the raft package except returned by Server.Context().</param>
         /// <param name="connectionString">connectionString can be anything.</param>
-        public Server(string name, string path, ITransporter transporter, StateMachine stateMachine, object context, string connectionString)
+        public Server(string name, string path, ITransporter transporter, IStateMachine stateMachine, object context, string connectionString)
         {
             if (string.IsNullOrEmpty(name))
             {
@@ -70,14 +73,14 @@ namespace CSharpRaft
             this.heartbeatInterval = Constants.DefaultHeartbeatInterval;
             this.maxLogEntriesPerRequest = Constants.MaxLogEntriesPerRequest;
 
-            this.log.ApplyFunc = (LogEntry e, Command c) =>
+            this.log.ApplyFunc = (LogEntry entry, ICommand cmd) =>
             {
                 if (Commited != null)
                 {
-                    Commited(this, new RaftEventArgs(e, null));
+                    Commited(this, new RaftEventArgs(entry, null));
                 }
 
-                c.Apply(new Context(this, this.currentTerm, this.log.internalCurrentIndex, this.log.CommitIndex));
+                cmd.Apply(new Context(this, this.currentTerm, this.log.internalCurrentIndex, this.log.CommitIndex));
                 return this;
             };
         }
@@ -205,11 +208,11 @@ namespace CSharpRaft
             }
         }
 
-        private StateMachine stateMachine;
+        private IStateMachine stateMachine;
         /// <summary>
         /// The state machine passed into the constructor.
         /// </summary>
-        public StateMachine StateMachine
+        public IStateMachine StateMachine
         {
             get
             {
@@ -311,14 +314,10 @@ namespace CSharpRaft
         }
 
         // Check if the server is promotable
-        public bool promotable()
+        private bool promotable()
         {
             return this.log.currentIndex > 0;
         }
-
-        //--------------------------------------
-        // Membership
-        //--------------------------------------
 
         /// <summary>
         /// The number of member servers in the consensus.
@@ -380,7 +379,7 @@ namespace CSharpRaft
 
                     foreach (var peer in this.peers)
                     {
-                        peer.Value.setHeartbeatInterval(value);
+                        peer.Value.SetHeartbeatInterval(value);
                     }
                 }
             }
@@ -450,7 +449,6 @@ namespace CSharpRaft
             {
                 this.state = ServerState.Initialized;
                 return;
-
             }
 
             string snapshotDir = System.IO.Path.Combine(this.path, "snapshot");
@@ -657,13 +655,34 @@ namespace CSharpRaft
         //   2.Granting vote to candidate
         private void followerLoop()
         {
-            DateTime since = DateTime.Now;
-
-            int electionTimeout = this.ElectionTimeout;
-
             Random rand = new Random();
+            int timeout = rand.Next(this.ElectionTimeout, this.ElectionTimeout * 2);
 
-            int timeoutChan = rand.Next(this.ElectionTimeout, this.ElectionTimeout * 2);
+            Timer timer = new Timer(timeout);
+            timer.Elapsed += (ss, ee) =>
+            {
+                if (this.State == ServerState.Follower)
+                {
+                    // only allow synced follower to promote to candidate
+                    if (this.promotable())
+                    {
+                        this.setState(ServerState.Candidate);
+                        timer.Stop();
+                    }
+                    else
+                    {
+                        timeout = rand.Next(this.ElectionTimeout, this.ElectionTimeout * 2);
+                        timer.Interval = timeout;
+
+                        this.debugLine("server.followerLoop timeout:" + timeout);
+                    }
+                }
+                else
+                {
+                    timer.Stop();
+                }
+            };
+            timer.Start();
 
             while (this.State == ServerState.Follower)
             {
@@ -672,62 +691,9 @@ namespace CSharpRaft
                     this.setState(ServerState.Stopped);
                     return;
                 }
-
-                //          var err error
-                bool update = false;
-
-
-                //      select {
-
-                //case e:= < -this.c:
-                //	switch req := e.target.(type) {
-
-                //	case *AppendEntriesRequest:
-                //		// If heartbeats get too close to the election timeout then send an event.
-                //		elapsedTime:= time.Now().Sub(since)
-
-                //              if elapsedTime > time.Duration(float64(electionTimeout) * ElectionTimeoutThresholdPercent) {
-                //                      this.DispatchEvent(newEvent(ElectionTimeoutThresholdEventType, elapsedTime, null))
-
-                //              }
-                //                  e.returnValue, update = this.processAppendEntriesRequest(req)
-                //	case *RequestVoteRequest:
-                //		e.returnValue, update = this.processRequestVoteRequest(req)
-                //	case *SnapshotRequest:
-                //		e.returnValue = this.processSnapshotRequest(req)
-
-                //          default:
-                //		err = NotLeaderError
-
-                //          }
-                //              // Callback to event.
-                //              e.c < -err
-
-                //case < -timeoutChan:
-                //	// only allow synced follower to promote to candidate
-                //	if this.promotable() {
-                //                  this.setState(Candidate)
-
-                //          }
-                //              else
-                //              {
-                //                  update = true
-
-                //          }
-                //          }
-
-                //          // Converts to candidate if election timeout elapses without either:
-                //          //   1.Receiving valid AppendEntries RPC, or
-                //          //   2.Granting vote to candidate
-
-                if (update)
-                {
-                    since = DateTime.Now;
-
-                    //timeoutChan = afterBetween(this.ElectionTimeout(), this.ElectionTimeout() * 2);
-                }
             }
         }
+
 
         // The event loop that is run when the server is in a Candidate state.
         private void candidateLoop()
@@ -738,106 +704,62 @@ namespace CSharpRaft
 
             if (prevLeader != this.leader)
             {
-                if (LeaderChanged != null)
-                {
-                    LeaderChanged(this, new RaftEventArgs(this.leader, prevLeader));
-                }
+                this.DispatchStateChangeEvent(new RaftEventArgs(this.leader, prevLeader));
             }
 
             int lastLogIndex, lastLogTerm;
             this.log.getLastInfo(out lastLogIndex, out lastLogTerm);
 
-
-            //  doVote:= true
-
-            //  votesGranted:= 0
-
-            //  var timeoutChan<-chan time.Time
-            // var respChan chan *RequestVoteResponse
-
-
+            bool doVote = true;
+            //count votes from other peers
+            int votesGranted = 0;
+            
             while (this.State == ServerState.Candidate)
             {
-                //          if doVote {
-                //              // Increment current term, vote for self.
-                //              this.currentTerm++
+                if (this.isStopped)
+                {
+                    this.setState(ServerState.Stopped);
+                    return;
+                }
 
-                //          this.votedFor = this.name
+                if (doVote)
+                {
+                    // Increment current term, vote for self.
+                    this.currentTerm++;
+                    this.votedFor = this.name;
 
-                //          // Send RequestVote RPCs to all other servers.
-                //              respChan = make(chan * RequestVoteResponse, len(this.peers))
+                    foreach (var peer in this.peers)
+                    {
+                        // Send RequestVote RPCs to all other servers.
+                        var resp=peer.Value.sendVoteRequest(new RequestVoteRequest(this.currentTerm, this.name, lastLogIndex, lastLogTerm));
+                        if (resp != null && resp.Result != null) {
+                            if (this.processVoteResponse(resp.Result))
+                            {
+                                this.debugLine("server.candidate.vote.granted: ", votesGranted); 
+                                
+                                // Collect votes from peers.
+                                votesGranted++;
+                            }
+                        }
+                    }
 
-                //          for _, peer := range this.peers {
-                //                  this.routineGroup.Add(1)
+                    // Wait for either:
+                    //   * Votes received from majority of servers: become leader
+                    //   * AppendEntries RPC received from new leader: step down.
+                    //   * Election timeout elapses without election resolution: increment term, start new election
+                    //   * Discover higher term: step down (§5.1)
+                    votesGranted = 1;
+                    doVote = false;
+                }
 
-                //              go func(peer* Peer)
-                //                  {
-                //                      defer this.routineGroup.Done()
-
-                //                  peer.sendVoteRequest(newRequestVoteRequest(this.currentTerm, this.name, lastLogIndex, lastLogTerm), respChan)
-
-                //              } (peer)
-
-                //          }
-
-                //              // Wait for either:
-                //              //   * Votes received from majority of servers: become leader
-                //              //   * AppendEntries RPC received from new leader: step down.
-                //              //   * Election timeout elapses without election resolution: increment term, start new election
-                //              //   * Discover higher term: step down (§5.1)
-                //              votesGranted = 1
-
-                //          timeoutChan = afterBetween(this.ElectionTimeout(), this.ElectionTimeout() * 2)
-
-                //          doVote = false
-
-                //      }
-
-                //          // If we received enough votes then stop waiting for more votes.
-                //          // And return from the candidate loop
-                //          if votesGranted == this.QuorumSize() {
-                //              this.debugLine("server.candidate.recv.enough.votes")
-
-                //          this.setState(Leader)
-
-                //          return
-
-                //      }
-
-                //          // Collect votes from peers.
-                //          select {
-                //case < -this.stopped:
-                //	this.setState(Stopped)
-
-                //          return
-
-                //case resp:= < -respChan:
-                //	if success := this.processVoteResponse(resp); success {
-                //                  this.debugLine("server.candidate.vote.granted: ", votesGranted)
-
-                //              votesGranted++
-
-                //          }
-
-                //case e:= < -this.c:
-                //	var err error
-
-                //          switch req := e.target.(type) {
-
-                //	case *AppendEntriesRequest:
-                //		e.returnValue, _ = this.processAppendEntriesRequest(req)
-                //	case *RequestVoteRequest:
-                //		e.returnValue, _ = this.processRequestVoteRequest(req)
-
-                //          }
-
-                //              // Callback to event.
-                //              e.c < -err
-
-                //case < -timeoutChan:
-                //	doVote = true
-
-                //      }
+                // If we received enough votes then stop waiting for more votes.
+                // And return from the candidate loop
+                if (votesGranted == this.QuorumSize)
+                {
+                    this.debugLine("server.candidate.recv.enough.votes");
+                    this.setState(ServerState.Leader);
+                    return;
+                }
             }
         }
 
@@ -861,10 +783,7 @@ namespace CSharpRaft
             // each server; repeat during idle periods to prevent election timeouts
             // (§5.2)". The heartbeats started above do the "idle" period work.
 
-            Task.Factory.StartNew(new Action(() =>
-            {
-                this.Do(new NOPCommand { });
-            }));
+            this.Do(new NOPCommand { });
 
             // Begin to collect response from followers
             while (this.State == ServerState.Leader)
@@ -876,28 +795,11 @@ namespace CSharpRaft
                     {
                         peer.Value.stopHeartbeat(false);
                     }
+
                     this.setState(ServerState.Stopped);
                     return;
                 }
-
-                //        var err error
-                //        select
-                //{
-                //		case e := <-this.c:
-                //			switch req := e.target.(type) {
-                //			case *AppendEntriesRequest:
-                //                e.returnValue, _ = this.processAppendEntriesRequest(req)
-                //			case *AppendEntriesResponse:
-                //				this.processAppendEntriesResponse(req)
-                //			case *RequestVoteRequest:
-                //                e.returnValue, _ = this.processRequestVoteRequest(req)
-                //            }
-
-                //    // Callback to event.
-                //    e.c<- err
-                //}
             }
-
             this.syncedPeer = null;
         }
 
@@ -910,21 +812,6 @@ namespace CSharpRaft
                     this.setState(ServerState.Stopped);
                     return;
                 }
-
-                //      var err error
-                //      select {
-                //case e:= < -this.c:
-                //	switch req := e.target.(type) {
-                //	case *AppendEntriesRequest:
-                //		e.returnValue, _ = this.processAppendEntriesRequest(req)
-                //	case *RequestVoteRequest:
-                //		e.returnValue, _ = this.processRequestVoteRequest(req)
-                //	case *SnapshotRecoveryRequest:
-                //		e.returnValue = this.processSnapshotRecoveryRequest(req)
-                //  }
-                //          // Callback to event.
-                //          e.c < -err
-                //      }
             }
         }
 
@@ -934,7 +821,7 @@ namespace CSharpRaft
 
         // Attempts to execute a command and replicate it. The function will return
         // when the command has been successfully committed or an error has occurred.
-        public object Do(Command command)
+        public object Do(ICommand command)
         {
             switch (this.State)
             {
@@ -947,7 +834,6 @@ namespace CSharpRaft
                         {
                             this.debugLine("self join and promote to leader");
                             this.setState(ServerState.Leader);
-
                             return this.processCommand(command);
                         }
                         else
@@ -966,32 +852,35 @@ namespace CSharpRaft
         }
 
         // Processes a command.
-        private bool processCommand(Command command)
+        private bool processCommand(ICommand command)
         {
-            this.debugLine("server.command.process:"+command.CommandName);
-
-            try
+            lock (mutex)
             {
-                // Create an entry for the command in the log.
-                var entry = this.log.createEntry(this.currentTerm, command);
-                this.log.appendEntry(entry);
+                this.debugLine("server.command.process:" + command.CommandName);
 
-                this.syncedPeer[this.Name] = true;
-
-                if (this.peers.Count == 0)
+                try
                 {
-                    int commitIndex = this.log.currentIndex;
+                    // Create an entry for the command in the log.
+                    var entry = this.log.createEntry(this.currentTerm, command);
+                    this.log.appendEntry(entry);
 
-                    this.log.setCommitIndex(commitIndex);
+                    this.syncedPeer[this.Name] = true;
 
-                    this.debugLine("commit index ", commitIndex);
+                    if (this.peers.Count == 0)
+                    {
+                        int commitIndex = this.log.currentIndex;
+
+                        this.log.setCommitIndex(commitIndex);
+
+                        this.debugLine("commit index ", commitIndex);
+                    }
+                    return true;
                 }
-                return true;
-            }
-            catch (Exception err)
-            {
-                this.debugLine("server.command.log.entry.error:", err);
-                return false;
+                catch (Exception err)
+                {
+                    this.debugLine("server.command.log.entry.error:", err);
+                    return false;
+                }
             }
         }
 
@@ -1156,7 +1045,7 @@ namespace CSharpRaft
             {
                 this.debugLine("server.candidate.vote: denied");
             }
-            return true;
+            return false;
         }
 
         //--------------------------------------
@@ -1365,6 +1254,7 @@ namespace CSharpRaft
             {
                 throw new Exception("pendingSnapshot.is.null");
             }
+
             // Write snapshot to disk.
             this.pendingSnapshot.save();
             // Swap the current and last snapshots.

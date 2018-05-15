@@ -1,19 +1,18 @@
-﻿using System;
-using System.IO;
-using CSharpRaft;
-using CSharpRaft.Command;
+﻿using System.IO;
 
-namespace CSharpRaft.Test.Mocks
+namespace CSharpRaft.Command
 {
-    class Command2 : ICommand
+    /// <summary>
+    /// NOP command
+    /// </summary>
+    public class NOPCommand : ICommand
     {
-        public int Id { get; set; }
-
+        // The name of the NOP command in the log
         public string CommandName
         {
             get
             {
-                return "Command2";
+                return "raft:nop";
             }
         }
 

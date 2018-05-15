@@ -51,8 +51,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AppendEntries.cs" />
-    <Compile Include="Command.cs" />
-    <Compile Include="Commands.cs" />
+    <Compile Include="Command\DefaultLeaveCommand.cs" />
+    <Compile Include="Command\Commands.cs" />
+    <Compile Include="Command\DefaultJoinCommand.cs" />
+    <Compile Include="Command\ICommand.cs" />
+    <Compile Include="Command\NOPCommand.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="ConfigHelper.cs" />
     <Compile Include="Constants.cs" />
@@ -82,8 +85,12 @@
     <Compile Include="protobuf\snapshot_request.cs" />
     <Compile Include="protobuf\snapshot_response.cs" />
     <Compile Include="RaftEventArgs.cs" />
+    <Compile Include="Serialize\ISerializer.cs" />
+    <Compile Include="Serialize\JsonSerializer.cs" />
+    <Compile Include="Serialize\ProtoSerializer.cs" />
+    <Compile Include="Serialize\SerializerFactory.cs" />
     <Compile Include="Server.cs" />
-    <Compile Include="RequestVoteRequest.cs" />
+    <Compile Include="RequestVote.cs" />
     <Compile Include="ServerState.cs" />
     <Compile Include="Snapshot.cs" />
     <Compile Include="StateMachine.cs" />
@@ -106,6 +113,7 @@
     <None Include="protobuf\snapshot_request.proto" />
     <None Include="protobuf\snapshot_response.proto" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

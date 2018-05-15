@@ -3,7 +3,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 
-namespace Router
+namespace CSharpRaft.Router
 {
     class DefaultNotFoundHandler : IHttpHandler
     {

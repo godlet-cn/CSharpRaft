@@ -1,8 +1,11 @@
-﻿using System.Text;
+﻿using CSharpRaft.Command;
+using System;
+using System.IO;
+using System.Text;
 
 namespace CSharpRaft.Samples
 {
-    class WriteCommand : Command
+    class WriteCommand : ICommand
     {
         public string Key;
         public string Value;
@@ -35,6 +38,16 @@ namespace CSharpRaft.Samples
             db.Put(this.Key, this.Value);
 
             return UTF8Encoding.UTF8.GetBytes("join");
+        }
+
+        public bool Decode(Stream reader)
+        {
+            return false;
+        }
+
+        public bool Encode(Stream writer)
+        {
+            return false;
         }
     }
 }

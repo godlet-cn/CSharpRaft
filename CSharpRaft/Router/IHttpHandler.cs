@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace Router
+namespace CSharpRaft.Router
 {
     public delegate void RouteHandler(HttpListenerRequest request, HttpListenerResponse response);
 

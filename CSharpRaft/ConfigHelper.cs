@@ -28,7 +28,7 @@ namespace CSharpRaft
             string strConf = JsonConvert.SerializeObject(conf);
 
             string confPath = Path.Combine(server.Path, "conf");
-            server.debugLine("writeConf.write ", confPath);
+            server.debugLine("WriteConfig ", confPath);
 
             string tmpConfPath = Path.Combine(server.Path, "conf.tmp");
             using (StreamWriter stream = new StreamWriter(tmpConfPath, false, Encoding.UTF8))
@@ -54,7 +54,7 @@ namespace CSharpRaft
         {
             string confPath = System.IO.Path.Combine(server.Path, "conf");
 
-            server.debugLine("readConf.open ", confPath);
+            server.debugLine("ReadConfig ", confPath);
 
             if (File.Exists(confPath))
             {

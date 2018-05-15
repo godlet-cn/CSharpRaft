@@ -1,6 +1,7 @@
 ﻿using CSharpRaft.Test.Mocks;
 using NUnit.Framework;
 using System;
+using CSharpRaft.Command;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;

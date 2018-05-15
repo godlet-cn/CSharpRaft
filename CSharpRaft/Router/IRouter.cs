@@ -1,4 +1,4 @@
-﻿namespace Router
+﻿namespace CSharpRaft.Router
 {
     public interface IRouter
     {
