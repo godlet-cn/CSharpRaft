@@ -608,9 +608,10 @@ namespace CSharpRaft
             this.debugLine("server.loop.end");
         }
 
-        Timer electionTimer;
-
-        private void ElectionTick()
+        /// <summary>
+        /// Election timer
+        /// </summary>
+        private void startElectionTimer()
         {
             Random rand = new Random();
             int timeout = rand.Next(this.ElectionTimeout, this.ElectionTimeout * 2);
@@ -642,6 +643,7 @@ namespace CSharpRaft
             electionTimer.Start();
         }
 
+
         // The event loop that is run when the server is in a Follower state.
         // Responds to RPCs from candidates and leaders.
         // Converts to candidate if election timeout elapses without either:
@@ -649,7 +651,7 @@ namespace CSharpRaft
         //   2.Granting vote to candidate
         private void followerLoop()
         {
-            ElectionTick();
+            this.startElectionTimer();
             while (this.State == ServerState.Follower)
             {
                 if (this.isStopped)
@@ -658,6 +660,29 @@ namespace CSharpRaft
                     return;
                 }
             }
+        }
+
+        public bool doVote = false;
+        private Timer electionTimer;
+        private Timer voteTimer;
+
+        private void startVoteTimer()
+        {
+            Random rand = new Random();
+            int timeout = rand.Next(this.ElectionTimeout, this.ElectionTimeout * 2);
+
+            voteTimer = new Timer(timeout);
+
+            voteTimer.Elapsed += (ss, ee) =>
+            {
+                voteTimer.Stop();
+
+                if (this.State == ServerState.Candidate)
+                {
+                    doVote = true;
+                }
+            };
+            voteTimer.Start();
         }
 
         // The event loop that is run when the server is in a Candidate state.
@@ -675,9 +700,10 @@ namespace CSharpRaft
             int lastLogIndex, lastLogTerm;
             this.log.getLastInfo(out lastLogIndex, out lastLogTerm);
 
-            bool doVote = true;
+            doVote = true;
             //count votes from other peers
             int votesGranted = 0;
+            this.startVoteTimer();
 
             while (this.State == ServerState.Candidate)
             {
@@ -692,13 +718,16 @@ namespace CSharpRaft
                     // Increment current term, vote for self.
                     this.currentTerm++;
                     this.votedFor = this.name;
+                    this.debugLine("server.candidate.sendVoteRequest", "Term:" + this.currentTerm, "Name:" + this.name);
 
                     foreach (var peer in this.peers)
                     {
                         try
                         {
                             // Send RequestVote RPCs to all other servers.
-                            var resp = peer.Value.sendVoteRequest(new RequestVoteRequest(this.currentTerm, this.name, lastLogIndex, lastLogTerm));
+                            var resp = peer.Value.sendVoteRequest(new RequestVoteRequest(this.currentTerm, 
+                                this.name, lastLogIndex, lastLogTerm));
+
                             if (resp != null && resp.Result != null)
                             {
                                 if (this.processVoteResponse(resp.Result))
@@ -726,11 +755,16 @@ namespace CSharpRaft
 
                 // If we received enough votes then stop waiting for more votes.
                 // And return from the candidate loop
-                if (votesGranted == this.QuorumSize)
+                if (votesGranted >= this.QuorumSize)
                 {
+                    voteTimer.Stop();
+
                     this.debugLine("server.candidate.recv.enough.votes");
                     this.setState(ServerState.Leader);
-                    return;
+                }
+                else
+                {
+                    voteTimer.Start();
                 }
             }
         }
@@ -871,7 +905,7 @@ namespace CSharpRaft
                 //Stop current timer
                 this.electionTimer.Stop();
                 //Start next timer to wait for leader hardbeat
-                ElectionTick();
+                startElectionTimer();
             }
 
             return this.processAppendEntriesRequest(req);
@@ -901,6 +935,10 @@ namespace CSharpRaft
                 // step-down to follower when it is a candidate
                 if (this.state == ServerState.Candidate)
                 {
+                    if (this.voteTimer != null)
+                    {
+                        this.voteTimer.Stop();
+                    }
                     // change state to follower
                     this.setState(ServerState.Follower);
                 }
@@ -972,6 +1010,10 @@ namespace CSharpRaft
                 return;
             }
 
+            if (this.syncedPeer == null)
+            {
+                this.syncedPeer = new Dictionary<string, bool>();
+            }
             // if one peer successfully append a log from the leader term,
             // we add it to the synced list
             if (resp.append == true)
@@ -988,6 +1030,7 @@ namespace CSharpRaft
             // Determine the committed index that a majority has.
             List<int> indices = new List<int>();
             indices.Add(this.log.currentIndex);
+
             foreach (var peer in this.peers)
             {
                 indices.Add(peer.Value.PrevLogIndex);
@@ -1079,8 +1122,8 @@ namespace CSharpRaft
             {
 
                 this.debugLine("server.deny.vote: cause out of date log: ", req.CandidateName,
-                        "Index :[", lastIndex, "]", " [", req.LastLogIndex, "]",
-                        "Term :[", lastTerm, "]", " [", req.LastLogTerm, "]");
+                    "Index :[", lastIndex, "]", " [", req.LastLogIndex, "]",
+                    "Term :[", lastTerm, "]", " [", req.LastLogTerm, "]");
                 return new RequestVoteResponse(this.currentTerm, false);
             }
 

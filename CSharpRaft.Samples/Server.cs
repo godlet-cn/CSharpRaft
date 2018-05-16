@@ -1,11 +1,10 @@
 ﻿using CSharpRaft.Command;
-using CSharpRaft.Samples.Handlers;
 using CSharpRaft.Router;
+using CSharpRaft.Samples.Handlers;
 using System;
 using System.IO;
 using System.Net.Http;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace CSharpRaft.Samples
 {
@@ -57,9 +56,9 @@ namespace CSharpRaft.Samples
         /// <param name="leader"></param>
         public void ListenAndServer(string leader)
         {
-            CSharpRaft.DebugTrace.DebugLine("Initializing Raft Server: " + this.path);
+            DebugTrace.DebugLine("Initializing Raft Server: " + this.path);
 
-            var transporter = new CSharpRaft.Transport.HttpTransporter();
+            var transporter = new Transport.HttpTransporter();
 
             this.raftServer = new CSharpRaft.Server(this.name, this.path, transporter, null, db, "");
            
@@ -68,7 +67,7 @@ namespace CSharpRaft.Samples
             if (string.IsNullOrEmpty(leader) == false)
             {
                 // Join to leader if specified.
-                CSharpRaft.DebugTrace.DebugLine("Attempting to join leader:" + leader);
+                DebugTrace.DebugLine("Attempting to join leader:" + leader);
                 if (!this.raftServer.IsLogEmpty)
                 {
                     throw new Exception("Cannot join with an existing log");
@@ -78,7 +77,7 @@ namespace CSharpRaft.Samples
             else if (this.raftServer.IsLogEmpty)
             {
                 // Initialize the server by joining itself.
-                CSharpRaft.DebugTrace.DebugLine("Initializing new cluster");
+                DebugTrace.DebugLine("Initializing new cluster");
                 this.raftServer.Do(new DefaultJoinCommand()
                 {
                     Name = this.raftServer.Name,
@@ -119,26 +118,33 @@ namespace CSharpRaft.Samples
 
         private async void Join(string leader)
         {
-            DefaultJoinCommand cmd = new DefaultJoinCommand()
+            try
             {
-                Name = this.raftServer.Name,
-                ConnectionString = this.connectionString()
-            };
-
-            using (MemoryStream ms = new MemoryStream())
-            {
-                cmd.Encode(ms);
-                ms.Flush();
-                ms.Seek(0,SeekOrigin.Begin);
-
-                HttpClient client = new HttpClient();
-                HttpContent content = new StreamContent(ms);
-
-                HttpResponseMessage resp = await client.PostAsync(string.Format("http://{0}/join", leader), content);
-                if (resp != null)
+                DefaultJoinCommand cmd = new DefaultJoinCommand()
                 {
+                    Name = this.raftServer.Name,
+                    ConnectionString = this.connectionString()
+                };
 
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    cmd.Encode(ms);
+                    ms.Flush();
+                    ms.Seek(0, SeekOrigin.Begin);
+
+                    HttpClient client = new HttpClient();
+                    HttpContent content = new StreamContent(ms);
+
+                    HttpResponseMessage resp = await client.PostAsync(string.Format("http://{0}/join", leader), content);
+                    if (resp != null && resp.IsSuccessStatusCode)
+                    {
+                        DebugTrace.DebugLine("Join result:", resp.ReasonPhrase);
+                    }
                 }
+            }
+            catch (Exception err)
+            {
+                DebugTrace.DebugLine("Join error", err);
             }
         }
     }

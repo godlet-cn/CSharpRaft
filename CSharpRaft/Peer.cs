@@ -6,7 +6,9 @@ using System.Timers;
 
 namespace CSharpRaft
 {
-    // A peer is a reference to another server involved in the consensus protocol.
+    /// <summary>
+    /// A peer is a reference to another server involved in the consensus protocol.
+    /// </summary>
     public class Peer
     {
         public string Name { get; set; }
@@ -50,7 +52,6 @@ namespace CSharpRaft
         //--------------------------------------
         // Prev log index
         //--------------------------------------
-
         private int prevLogIndex;
         // Retrieves or sets the previous log index.
         [JsonIgnore]
@@ -108,14 +109,11 @@ namespace CSharpRaft
                     prevLogIndex = this.prevLogIndex,
                     lastActivity = this.lastActivity
                 };
-
                 return peer;
             }
         }
 
-        //--------------------------------------
-        // Heartbeat
-        //--------------------------------------
+        #region Heartbeat
 
         private static Timer ticker;
         // Starts the peer heartbeat.
@@ -124,7 +122,6 @@ namespace CSharpRaft
             this.LastActivity = DateTime.Now;
 
             ticker = new Timer(this.heartbeatInterval);
-
             // Hook up the Elapsed event for the timer. 
             ticker.Elapsed += Ticker_Elapsed;
             ticker.AutoReset = true;
@@ -161,6 +158,8 @@ namespace CSharpRaft
             TimeSpan duration = DateTime.Now - start;
             this.server.DispatchHeartbeatEvent(new RaftEventArgs(duration, null));
         }
+
+        #endregion
 
         private void flush()
         {
