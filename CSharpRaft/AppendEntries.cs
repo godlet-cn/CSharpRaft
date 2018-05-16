@@ -20,7 +20,8 @@ namespace CSharpRaft
 
         public List<protobuf.LogEntry> Entries { get; set; }
 
-        public AppendEntriesRequest() {
+        public AppendEntriesRequest()
+        {
 
         }
 
@@ -42,7 +43,7 @@ namespace CSharpRaft
             this.LeaderName = leaderName;
             this.Entries = pbEntries;
         }
-        
+
         // Encodes the AppendEntriesRequest to a buffer. Returns the number of bytes
         // written and any error that may have occurred.
         public void Encode(Stream stream)
@@ -114,7 +115,8 @@ namespace CSharpRaft
 
         public int Index
         {
-            get {
+            get
+            {
                 return (int)this.pb.Index;
             }
         }

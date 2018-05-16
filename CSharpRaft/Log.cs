@@ -40,29 +40,26 @@ namespace CSharpRaft
         // The last committed index in the log.
         public int CommitIndex
         {
-            get {
-                lock (mutex)
-                {
-                    return this.commitIndex;
-                }
+            get
+            {
+                return this.commitIndex;
             }
         }
 
         // The current index in the log.
         internal int currentIndex
         {
-            get {
-                lock (mutex)
-                {
-                    return this.internalCurrentIndex;
-                }
+            get
+            {
+                return this.internalCurrentIndex;
             }
         }
 
         // The current index in the log without locking
         internal int internalCurrentIndex
         {
-            get {
+            get
+            {
                 if (this.entries.Count == 0)
                 {
                     return this.startIndex;
@@ -74,7 +71,8 @@ namespace CSharpRaft
         // The next index in the log.
         internal int nextIndex
         {
-            get {
+            get
+            {
                 return this.currentIndex + 1;
             }
         }
@@ -84,10 +82,7 @@ namespace CSharpRaft
         {
             get
             {
-                lock (mutex)
-                {
-                    return (this.entries.Count == 0) && (this.startIndex == 0);
-                }
+                return (this.entries.Count == 0) && (this.startIndex == 0);
             }
         }
 
@@ -96,15 +91,12 @@ namespace CSharpRaft
         {
             get
             {
-                lock (mutex)
+                if (this.entries.Count > 0)
                 {
-                    if (this.entries.Count > 0)
+                    var entry = this.entries[this.entries.Count - 1];
+                    if (entry != null)
                     {
-                        var entry = this.entries[this.entries.Count - 1];
-                        if (entry != null)
-                        {
-                            return entry.CommandName;
-                        }
+                        return entry.CommandName;
                     }
                 }
                 return "";
@@ -117,23 +109,20 @@ namespace CSharpRaft
         // The current term in the log.
         internal int currentTerm
         {
-            get {
-                lock (mutex)
+            get
+            {
+                if (this.entries.Count == 0)
                 {
-
-                    if (this.entries.Count == 0)
-                    {
-                        return this.startTerm;
-                    }
-                    return this.entries[this.entries.Count - 1].Term;
+                    return this.startTerm;
                 }
+                return this.entries[this.entries.Count - 1].Term;
             }
         }
 
         #endregion
 
         #region Methods
-        
+
         //--------------------------------------
         // State
         //--------------------------------------
@@ -205,7 +194,7 @@ namespace CSharpRaft
         // Creates a log entry associated with this log.
         internal LogEntry createEntry(int term, ICommand command)
         {
-            return new LogEntry(this,this.nextIndex, term, command);
+            return new LogEntry(this, this.nextIndex, term, command);
         }
 
         // Retrieves an entry from the log. If the entry has been eliminated because
@@ -259,6 +248,7 @@ namespace CSharpRaft
 
                     entries = this.entries;
                     term = this.startTerm;
+                    return;
                 }
 
                 DebugTrace.TraceLine("log.entriesAfter.partial: ", index, " ", this.entries[this.entries.Count - 1].Index);
@@ -394,7 +384,6 @@ namespace CSharpRaft
                 // Find all entries whose index is between the previous index and the current index.
                 for (int i = this.commitIndex + 1; i <= index; i++)
                 {
-
                     int entryIndex = i - 1 - this.startIndex;
                     LogEntry entry = this.entries[entryIndex];
 
@@ -407,7 +396,7 @@ namespace CSharpRaft
                     // Apply the changes to the state machine and store the error code.
                     object returnValue = this.ApplyFunc(entry, command);
 
-                    DebugTrace.DebugLine(string.Format("raft.Log.setCommitIndex.set.result index: {0}, entries index: {1}", i, entryIndex));
+                    DebugTrace.DebugLine(string.Format("raft.Log.setCommitIndex: index: {0}, entries index: {1} to commit index:{2}", i, entryIndex,index));
 
                     // we can only commit up to the most recent join command
                     // if there is a join in this batch of commands.

@@ -17,7 +17,7 @@
     /// <summary>
     /// Context is the concrete implementation of IContext.
     /// </summary>
-    public class Context: IContext
+    public class Context : IContext
     {
         public Context(Server server, int currentIndex, int currentTerm, int commitIndex)
         {

@@ -71,7 +71,8 @@ namespace CSharpRaft
         public List<Peer> Peers { get; set; }
         public byte[] State { get; set; }
 
-        public SnapshotRecoveryRequest() {
+        public SnapshotRecoveryRequest()
+        {
 
         }
 
@@ -122,7 +123,7 @@ namespace CSharpRaft
                 this.LastIndex = (int)pb.LastIndex;
                 this.LastTerm = (int)pb.LastTerm;
                 this.State = pb.State;
-                
+
                 this.Peers = new List<Peer>();
                 foreach (var peer in pb.Peers)
                 {
@@ -257,7 +258,6 @@ namespace CSharpRaft
             protobuf.SnapshotResponse pb = new protobuf.SnapshotResponse()
             {
                 Success = this.Success
-
             };
             Serializer.Serialize<protobuf.SnapshotResponse>(stream, pb);
         }

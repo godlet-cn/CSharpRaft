@@ -44,44 +44,56 @@ namespace CSharpRaft.Transport
         ///  Retrieves the AppendEntries path.
         /// </summary>
         /// <returns></returns>
-        public string AppendEntriesPath()
+        public string AppendEntriesPath
         {
-            return this.appendEntriesPath;
+            get
+            {
+                return this.appendEntriesPath;
+            }
         }
 
         /// <summary>
         ///  Retrieves the RequestVote path.
         /// </summary>
         /// <returns></returns>
-        public string RequestVotePath()
+        public string RequestVotePath
         {
-            return this.requestVotePath;
+            get
+            {
+                return this.requestVotePath;
+            }
         }
 
         /// <summary>
         /// Retrieves the Snapshot path.
         /// </summary>
         /// <returns></returns>
-        public string SnapshotPath()
+        public string SnapshotPath
         {
-            return this.snapshotPath;
+            get
+            {
+                return this.snapshotPath;
+            }
         }
 
         /// <summary>
         /// Retrieves the SnapshotRecovery path.
         /// </summary>
         /// <returns></returns>
-        public string SnapshotRecoveryPath()
+        public string SnapshotRecoveryPath
         {
-            return this.snapshotRecoveryPath;
+            get
+            {
+                return this.snapshotRecoveryPath;
+            }
         }
 
-        public void Install(Server server, Action<string,IHttpHandler> handler)
+        public void Install(Server server, Action<string, IHttpHandler> handler)
         {
             if (server == null || handler == null)
                 throw new Exception("Parameter server and router can not be null");
 
-            handler(this.appendEntriesPath,new AppendEntriesHttpHandler(server));
+            handler(this.appendEntriesPath, new AppendEntriesHttpHandler(server));
 
             handler(this.requestVotePath, new RequestVotePathHttpHandler(server));
 
@@ -92,154 +104,169 @@ namespace CSharpRaft.Transport
 
         public async Task<AppendEntriesResponse> SendAppendEntriesRequest(Server server, Peer peer, AppendEntriesRequest req)
         {
-            using (MemoryStream ms = new MemoryStream())
+            try
             {
-                try
+                Uri rootUrl = new Uri(peer.ConnectionString);
+                Uri absoluteUrl = new Uri(rootUrl, this.AppendEntriesPath);
+                HttpResponseMessage httpResp;
+
+                using (MemoryStream inSteam = new MemoryStream())
                 {
-                    req.Encode(ms);
+                    req.Encode(inSteam);
+                    inSteam.Flush();
+                    inSteam.Seek(0, SeekOrigin.Begin);
+                    HttpContent content = new StreamContent(inSteam);
 
-                    string url = Path.Combine(peer.ConnectionString, this.AppendEntriesPath());
+                    DebugTrace.TraceLine(server.Name, "POST", absoluteUrl);
+                    httpResp = await this.httpClient.PostAsync(absoluteUrl, content);
+                }
+                
+                if (!httpResp.IsSuccessStatusCode)
+                {
+                    DebugTrace.TraceLine("transporter.SendAppendEntries.response.error:" + httpResp.StatusCode);
+                    return null;
+                }
 
-                    DebugTrace.TraceLine(server.Name, "POST", url);
-
-                    HttpContent content = new StreamContent(ms);
-
-                    HttpResponseMessage httpResp = await this.httpClient.PostAsync(url, content);
-                    if (httpResp.IsSuccessStatusCode)
-                    {
-                        DebugTrace.TraceLine("transporter.SendAppendEntries.response.error:" + httpResp.StatusCode);
-                        return null;
-                    }
-
-                    ms.SetLength(0);
-                    ms.Seek(0, SeekOrigin.Begin);
-
-                    await httpResp.Content.CopyToAsync(ms);
+                using (MemoryStream outStream = new MemoryStream())
+                {
+                    await httpResp.Content.CopyToAsync(outStream);
+                    outStream.Flush();
+                    outStream.Seek(0, SeekOrigin.Begin);
 
                     AppendEntriesResponse resp = new AppendEntriesResponse();
-                    resp.Decode(ms);
+                    resp.Decode(outStream);
                     return resp;
-                }
-                catch (Exception err)
-                {
-                    DebugTrace.TraceLine("transporter.SendAppendEntriesRequest.error:" + err);
-                    return null;
                 }
             }
+            catch (Exception err)
+            {
+                DebugTrace.TraceLine("transporter.SendAppendEntriesRequest.error:" + err);
+                return null;
+            }
         }
-
-
+        
         public async Task<RequestVoteResponse> SendVoteRequest(Server server, Peer peer, RequestVoteRequest req)
         {
-            using (MemoryStream ms = new MemoryStream())
+            try
             {
-                try
+                Uri rootUrl = new Uri(peer.ConnectionString);
+                Uri absoluteUrl = new Uri(rootUrl, this.RequestVotePath);
+                HttpResponseMessage httpResp;
+
+                using (MemoryStream inSteam = new MemoryStream())
                 {
-                    req.Encode(ms);
+                    req.Encode(inSteam);
 
-                    string url = Path.Combine(peer.ConnectionString, this.AppendEntriesPath());
-
-                    DebugTrace.TraceLine(server.Name, "POST", url);
-
-                    HttpContent content = new StreamContent(ms);
-
-                    HttpResponseMessage httpResp = await this.httpClient.PostAsync(url, content);
-                    if (httpResp.IsSuccessStatusCode)
-                    {
-                        DebugTrace.TraceLine("transporter.SendVote.response.error:" + httpResp.StatusCode);
-                        return null;
-                    }
-
-                    ms.SetLength(0);
-                    ms.Seek(0, SeekOrigin.Begin);
-
-                    await httpResp.Content.CopyToAsync(ms);
-
-                    RequestVoteResponse resp = new RequestVoteResponse();
-                    resp.Decode(ms);
-                    return resp;
+                    HttpContent content = new StreamContent(inSteam);
+                    DebugTrace.TraceLine(server.Name, "POST", absoluteUrl);
+                    httpResp = await this.httpClient.PostAsync(absoluteUrl, content);
                 }
-                catch (Exception err)
+
+                if (!httpResp.IsSuccessStatusCode)
                 {
-                    DebugTrace.TraceLine("transporter.SendVoteRequest.error:" + err);
+                    DebugTrace.TraceLine("transporter.SendVote.response.error:" + httpResp.StatusCode);
                     return null;
                 }
+
+                using (MemoryStream outStream = new MemoryStream())
+                {
+                    await httpResp.Content.CopyToAsync(outStream);
+                    outStream.Flush();
+                    outStream.Seek(0, SeekOrigin.Begin);
+
+                    RequestVoteResponse resp = new RequestVoteResponse();
+                    resp.Decode(outStream);
+                    return resp;
+                }
+            }
+            catch (Exception err)
+            {
+                DebugTrace.TraceLine("transporter.SendVoteRequest.error:" + err);
+                return null;
             }
         }
 
         public async Task<SnapshotResponse> SendSnapshotRequest(Server server, Peer peer, SnapshotRequest req)
         {
-            using (MemoryStream ms = new MemoryStream())
+           
+            try
             {
-                try
+                Uri rootUrl = new Uri(peer.ConnectionString);
+                Uri absoluteUrl = new Uri(rootUrl, this.SnapshotPath);
+                HttpResponseMessage httpResp;
+
+                using (MemoryStream ms = new MemoryStream())
                 {
                     req.Encode(ms);
-
-                    string url = Path.Combine(peer.ConnectionString, this.AppendEntriesPath());
-
-                    DebugTrace.TraceLine(server.Name, "POST", url);
-
                     HttpContent content = new StreamContent(ms);
 
-                    HttpResponseMessage httpResp = await this.httpClient.PostAsync(url, content);
-                    if (httpResp.IsSuccessStatusCode)
-                    {
-                        DebugTrace.TraceLine("transporter.SendSnapshot.response.error:" + httpResp.StatusCode);
-                        return null;
-                    }
-
-                    ms.SetLength(0);
-                    ms.Seek(0, SeekOrigin.Begin);
-
-                    await httpResp.Content.CopyToAsync(ms);
-
-                    SnapshotResponse resp = new SnapshotResponse();
-                    resp.Decode(ms);
-                    return resp;
+                    DebugTrace.TraceLine(server.Name, "POST", absoluteUrl);
+                    httpResp = await this.httpClient.PostAsync(absoluteUrl, content);
                 }
-                catch (Exception err)
+
+                if (!httpResp.IsSuccessStatusCode)
                 {
-                    DebugTrace.TraceLine("transporter.SendSnapshotRequest.error:" + err);
+                    DebugTrace.TraceLine("transporter.SendSnapshot.response.error:" + httpResp.StatusCode);
                     return null;
                 }
+
+                using (MemoryStream outStream = new MemoryStream())
+                {
+                    await httpResp.Content.CopyToAsync(outStream);
+                    outStream.Flush();
+                    outStream.Seek(0, SeekOrigin.Begin);
+
+                    SnapshotResponse resp = new SnapshotResponse();
+                    resp.Decode(outStream);
+                    return resp;
+                }
+            }
+            catch (Exception err)
+            {
+                DebugTrace.TraceLine("transporter.SendSnapshotRequest.error:" + err);
+                return null;
             }
         }
 
         public async Task<SnapshotRecoveryResponse> SendSnapshotRecoveryRequest(Server server, Peer peer, SnapshotRecoveryRequest req)
         {
-            using (MemoryStream ms = new MemoryStream())
+            try
             {
-                try
+                Uri rootUrl = new Uri(peer.ConnectionString);
+                Uri absoluteUrl = new Uri(rootUrl, this.SnapshotRecoveryPath);
+                HttpResponseMessage httpResp;
+
+                using (MemoryStream ms = new MemoryStream())
                 {
                     req.Encode(ms);
 
-                    string url = Path.Combine(peer.ConnectionString, this.AppendEntriesPath());
-
-                    DebugTrace.TraceLine(server.Name, "POST", url);
+                    DebugTrace.TraceLine(server.Name, "POST", absoluteUrl);
 
                     HttpContent content = new StreamContent(ms);
 
-                    HttpResponseMessage httpResp = await this.httpClient.PostAsync(url, content);
-                    if (httpResp.IsSuccessStatusCode)
-                    {
-                        DebugTrace.TraceLine("transporter.SendSnapshotRecovery.response.error:" + httpResp.StatusCode);
-                        return null;
-                    }
-
-                    ms.SetLength(0);
-                    ms.Seek(0, SeekOrigin.Begin);
-
-                    await httpResp.Content.CopyToAsync(ms);
-
-                    SnapshotRecoveryResponse resp = new SnapshotRecoveryResponse();
-                    resp.Decode(ms);
-                    return resp;
+                    httpResp = await this.httpClient.PostAsync(absoluteUrl, content);
                 }
-                catch (Exception err)
+                if (!httpResp.IsSuccessStatusCode)
                 {
-                    DebugTrace.TraceLine("transporter.SendSnapshotRecoveryRequest.error:" + err);
+                    DebugTrace.TraceLine("transporter.SendSnapshotRecovery.response.error:" + httpResp.StatusCode);
                     return null;
                 }
+
+                using (MemoryStream outStream = new MemoryStream())
+                {
+                    await httpResp.Content.CopyToAsync(outStream);
+                    outStream.Flush();
+                    outStream.Seek(0, SeekOrigin.Begin);
+
+                    SnapshotRecoveryResponse resp = new SnapshotRecoveryResponse();
+                    resp.Decode(outStream);
+                    return resp;
+                }
+            }
+            catch (Exception err)
+            {
+                DebugTrace.TraceLine("transporter.SendSnapshotRecoveryRequest.error:" + err);
+                return null;
             }
         }
     }

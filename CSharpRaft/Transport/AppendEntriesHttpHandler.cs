@@ -4,7 +4,7 @@ using System.Net;
 
 namespace CSharpRaft.Transport
 {
-    class AppendEntriesHttpHandler:AbstractHttpHandler
+    class AppendEntriesHttpHandler : AbstractHttpHandler
     {
         private Server server;
 
@@ -28,13 +28,13 @@ namespace CSharpRaft.Transport
                 using (MemoryStream ms = new MemoryStream())
                 {
                     aeResp.Encode(ms);
-
                     ms.Flush();
+                    ms.Seek(0, SeekOrigin.Begin);
 
                     byte[] data = ms.ToArray();
                     output.Write(data, 0, data.Length);
                 }
-            } 
+            }
         }
     }
 }

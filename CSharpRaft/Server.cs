@@ -1,5 +1,4 @@
 ﻿using CSharpRaft.Command;
-using CSharpRaft.Serialize;
 using CSharpRaft.Transport;
 using System;
 using System.Collections.Generic;
@@ -45,7 +44,7 @@ namespace CSharpRaft
         /// <param name="path">The root path of server</param>
         /// <param name="transporter">transporter can not be null</param>
         /// <param name="stateMachine">stateMachine can be null if snapshotting and log compaction is to be disabled.</param>
-        /// <param name="context">context can be anything (including null) and is not used by the raft package except returned by Server.Context().</param>
+        /// <param name="context">context can be anything (including null) and is not used by the raft package except returned by Server.Context.</param>
         /// <param name="connectionString">connectionString can be anything.</param>
         public Server(string name, string path, ITransporter transporter, IStateMachine stateMachine, object context, string connectionString)
         {
@@ -189,10 +188,7 @@ namespace CSharpRaft
             }
             set
             {
-                lock (mutex)
-                {
-                    this.transporter = value;
-                }
+                this.transporter = value;
             }
         }
 
@@ -239,10 +235,7 @@ namespace CSharpRaft
         {
             get
             {
-                lock (mutex)
-                {
-                    return this.state;
-                }
+                return this.state;
             }
         }
 
@@ -254,10 +247,7 @@ namespace CSharpRaft
         {
             get
             {
-                lock (mutex)
-                {
-                    return this.currentTerm;
-                }
+                return this.currentTerm;
             }
         }
 
@@ -326,10 +316,7 @@ namespace CSharpRaft
         {
             get
             {
-                lock (mutex)
-                {
-                    return this.peers.Count + 1;
-                }
+                return this.peers.Count + 1;
             }
         }
 
@@ -355,10 +342,7 @@ namespace CSharpRaft
             }
             set
             {
-                lock (mutex)
-                {
-                    this.electionTimeout = value;
-                }
+                this.electionTimeout = value;
             }
         }
 
@@ -373,14 +357,11 @@ namespace CSharpRaft
             }
             set
             {
-                lock (mutex)
-                {
-                    this.heartbeatInterval = value;
+                this.heartbeatInterval = value;
 
-                    foreach (var peer in this.peers)
-                    {
-                        peer.Value.SetHeartbeatInterval(value);
-                    }
+                foreach (var peer in this.peers)
+                {
+                    peer.Value.SetHeartbeatInterval(value);
                 }
             }
         }
@@ -392,10 +373,7 @@ namespace CSharpRaft
         {
             get
             {
-                lock (mutex)
-                {
-                    return (this.state != ServerState.Stopped && this.state != ServerState.Initialized);
-                }
+                return (this.state != ServerState.Stopped && this.state != ServerState.Initialized);
             }
         }
 
@@ -438,7 +416,7 @@ namespace CSharpRaft
         {
             if (this.IsRunning)
             {
-                Console.Error.WriteLine(string.Format("raft.Server: Server already running[{0}]", this.state));
+                Console.Error.WriteLine(string.Format("Server: Server already running[{0}]", this.state));
                 return;
             }
 
@@ -460,10 +438,9 @@ namespace CSharpRaft
                     Directory.CreateDirectory(snapshotDir);
                 }
             }
-            catch (Exception ex)
+            catch (Exception err)
             {
-                this.debugLine("raft: Snapshot directory doesn't exist");
-                Console.Error.WriteLine(string.Format("raft: Initialization error: {0}", ex));
+                this.debugLine("Server: Initialize snapshot directory error" + err);
                 return;
             }
 
@@ -515,15 +492,13 @@ namespace CSharpRaft
             this.setState(ServerState.Follower);
 
             // If no log entries exist then
-            // 1. wait for AEs(AppendEntities) from another node
+            // 1. wait for AppendEntities requests from another node
             // 2. wait for self-join command
             // to set itself promotable
             if (!this.promotable())
             {
                 this.debugLine("start as a new raft server");
-
-                // If log entries exist then allow promotion to candidate
-                // if no AEs received.
+                // If log entries exist then allow promotion to candidate if no AppendEntities requests received.
             }
             else
             {
@@ -580,11 +555,11 @@ namespace CSharpRaft
                     peeritem.Value.stopHeartbeat(false);
                 }
             }
+
             // update the term and clear vote for
             if (this.state != ServerState.Follower)
             {
                 this.setState(ServerState.Follower);
-
             }
 
             lock (mutex)
@@ -594,31 +569,16 @@ namespace CSharpRaft
                 this.votedFor = "";
             }
 
-            // Dispatch change events.
+            // Dispatch term change events.
             this.DispatchTermChangeEvent(new RaftEventArgs(this.currentTerm, prevTerm));
 
+            // Dispatch leader change events.
             if (prevLeader != this.leader)
             {
                 this.DispatchLeaderChangeEvent(new RaftEventArgs(this.leader, prevLeader));
             }
         }
 
-        //--------------------------------------
-        // Event Loop
-        //--------------------------------------
-
-        //               ________
-        //            --|Snapshot|                 timeout
-        //            |  --------                  ______
-        // recover    |       ^                   |      |
-        // snapshot / |       |snapshot           |      |
-        // higher     |       |                   v      |     recv majority votes
-        // term       |    --------    timeout    -----------                        -----------
-        //            |-> |Follower| ----------> | Candidate |--------------------> |  Leader   |
-        //                 --------               -----------                        -----------
-        //                    ^          higher term/ |                         higher term |
-        //                    |            new leader |                                     |
-        //                    |_______________________|____________________________________ |
         // The main event loop for the server
         private void loop()
         {
@@ -648,18 +608,15 @@ namespace CSharpRaft
             this.debugLine("server.loop.end");
         }
 
-        // The event loop that is run when the server is in a Follower state.
-        // Responds to RPCs from candidates and leaders.
-        // Converts to candidate if election timeout elapses without either:
-        //   1.Receiving valid AppendEntries RPC, or
-        //   2.Granting vote to candidate
-        private void followerLoop()
+        Timer electionTimer;
+
+        private void ElectionTick()
         {
             Random rand = new Random();
             int timeout = rand.Next(this.ElectionTimeout, this.ElectionTimeout * 2);
 
-            Timer timer = new Timer(timeout);
-            timer.Elapsed += (ss, ee) =>
+            electionTimer = new Timer(timeout);
+            electionTimer.Elapsed += (ss, ee) =>
             {
                 if (this.State == ServerState.Follower)
                 {
@@ -667,23 +624,32 @@ namespace CSharpRaft
                     if (this.promotable())
                     {
                         this.setState(ServerState.Candidate);
-                        timer.Stop();
+                        electionTimer.Stop();
                     }
                     else
                     {
                         timeout = rand.Next(this.ElectionTimeout, this.ElectionTimeout * 2);
-                        timer.Interval = timeout;
+                        electionTimer.Interval = timeout;
 
-                        this.debugLine("server.followerLoop timeout:" + timeout);
+                        this.debugLine("Election timeout");
                     }
                 }
                 else
                 {
-                    timer.Stop();
+                    electionTimer.Stop();
                 }
             };
-            timer.Start();
+            electionTimer.Start();
+        }
 
+        // The event loop that is run when the server is in a Follower state.
+        // Responds to RPCs from candidates and leaders.
+        // Converts to candidate if election timeout elapses without either:
+        //   1.Receiving valid AppendEntries RPC, or
+        //   2.Granting vote to candidate
+        private void followerLoop()
+        {
+            ElectionTick();
             while (this.State == ServerState.Follower)
             {
                 if (this.isStopped)
@@ -693,7 +659,6 @@ namespace CSharpRaft
                 }
             }
         }
-
 
         // The event loop that is run when the server is in a Candidate state.
         private void candidateLoop()
@@ -713,7 +678,7 @@ namespace CSharpRaft
             bool doVote = true;
             //count votes from other peers
             int votesGranted = 0;
-            
+
             while (this.State == ServerState.Candidate)
             {
                 if (this.isStopped)
@@ -730,16 +695,23 @@ namespace CSharpRaft
 
                     foreach (var peer in this.peers)
                     {
-                        // Send RequestVote RPCs to all other servers.
-                        var resp=peer.Value.sendVoteRequest(new RequestVoteRequest(this.currentTerm, this.name, lastLogIndex, lastLogTerm));
-                        if (resp != null && resp.Result != null) {
-                            if (this.processVoteResponse(resp.Result))
+                        try
+                        {
+                            // Send RequestVote RPCs to all other servers.
+                            var resp = peer.Value.sendVoteRequest(new RequestVoteRequest(this.currentTerm, this.name, lastLogIndex, lastLogTerm));
+                            if (resp != null && resp.Result != null)
                             {
-                                this.debugLine("server.candidate.vote.granted: ", votesGranted); 
-                                
-                                // Collect votes from peers.
-                                votesGranted++;
+                                if (this.processVoteResponse(resp.Result))
+                                {
+                                    this.debugLine("server.candidate.vote.granted: ", votesGranted);
+                                    // Collect votes from peers.
+                                    votesGranted++;
+                                }
                             }
+                        }
+                        catch (Exception err)
+                        {
+                            this.debugLine("server.candidate.sendVoteRequest.error:", err);
                         }
                     }
 
@@ -891,18 +863,30 @@ namespace CSharpRaft
         // Appends zero or more log entry from the leader to this server.
         public AppendEntriesResponse AppendEntries(AppendEntriesRequest req)
         {
+            this.debugLine("server.AppendEntries: reset election timer----"+ this.state);
+            if (this.state == ServerState.Follower&&
+                this.electionTimer!=null)
+            {
+                this.debugLine("server.AppendEntries: reset election timer");
+                //Stop current timer
+                this.electionTimer.Stop();
+                //Start next timer to wait for leader hardbeat
+                ElectionTick();
+            }
+
             return this.processAppendEntriesRequest(req);
         }
 
         // Processes the "append entries" request.
         private AppendEntriesResponse processAppendEntriesRequest(AppendEntriesRequest req)
         {
-            this.traceLine("server.ae.process");
-
-
+            DebugTrace.TraceLine("==================================================================");
+            this.debugLine("server.ae.process,Term:", req.Term+ " Index:" + req.PrevLogIndex+ 
+                " CommitIndex:" + req.CommitIndex+" Rntries count:"+ req.Entries.Count);
+            
             if (req.Term < this.currentTerm)
             {
-                this.debugLine("server.ae.error: stale term");
+                this.debugLine(string.Format("server.ae.error: stale term,current term:{0},request term:{1}",this.currentTerm,req.Term));
 
                 return new AppendEntriesResponse(this.currentTerm, false, this.log.currentIndex, this.log.CommitIndex);
             }
@@ -913,6 +897,7 @@ namespace CSharpRaft
                 {
                     throw new Exception(string.Format("leader.elected.at.same.term.{0}\n", this.currentTerm));
                 }
+
                 // step-down to follower when it is a candidate
                 if (this.state == ServerState.Candidate)
                 {
@@ -964,6 +949,7 @@ namespace CSharpRaft
                 return new AppendEntriesResponse(this.currentTerm, false, this.log.currentIndex, this.log.CommitIndex);
             }
 
+            this.debugLine("server.ae.commit.success: ", "Term:"+this.currentTerm, "Index:" + this.log.currentIndex, "CommitIndex:" + this.log.CommitIndex);
             // once the server appended and committed all the log entries from the leader
             return new AppendEntriesResponse(this.currentTerm, true, this.log.currentIndex, this.log.CommitIndex);
         }
@@ -971,7 +957,7 @@ namespace CSharpRaft
         // Processes the "append entries" response from the peer. This is only
         // processed when the server is a leader. Responses received during other
         // states are dropped.
-        private void processAppendEntriesResponse(AppendEntriesResponse resp)
+        internal void processAppendEntriesResponse(AppendEntriesResponse resp)
         {
             // If we find a higher term then change to a follower and exit.
             if (resp.Term > this.Term)
@@ -1131,7 +1117,6 @@ namespace CSharpRaft
         public void AddPeer(string name, string connectiongString)
         {
             this.debugLine("server.peer.add: ", name, this.peers.Count);
-
             // Do not allow peers to be added twice.
             if (this.peers.ContainsKey(name))
             {
@@ -1142,6 +1127,10 @@ namespace CSharpRaft
             if (this.name != name)
             {
                 Peer peer = new Peer(this, name, connectiongString, this.heartbeatInterval);
+
+                int logIndex, logTerm;
+                this.log.getLastInfo(out logIndex, out logTerm);
+                peer.PrevLogIndex = logIndex;
 
                 if (this.State == ServerState.Leader)
                 {

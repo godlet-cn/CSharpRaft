@@ -29,6 +29,7 @@ namespace CSharpRaft.Transport
                     aeResp.Encode(ms);
 
                     ms.Flush();
+                    ms.Seek(0, SeekOrigin.Begin);
 
                     byte[] data = ms.ToArray();
                     output.Write(data, 0, data.Length);
