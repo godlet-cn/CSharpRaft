@@ -16,9 +16,14 @@ namespace CSharpRaft.Command
         /// </summary>
         public string Name { get; set; }
 
+        /// <summary>
+        /// Connection information
+        /// </summary>
         public string ConnectionString { get; set; }
 
-        // The name of the Join command in the log
+        /// <summary>
+        /// The name of the Join command in the log
+        /// </summary>
         [JsonIgnore]
         public string CommandName
         {
@@ -31,6 +36,7 @@ namespace CSharpRaft.Command
         public object Apply(IContext context)
         {
             context.Server.AddPeer(this.Name, this.ConnectionString);
+
             return UTF8Encoding.UTF8.GetBytes("join");
         }
 

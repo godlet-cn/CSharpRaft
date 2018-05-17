@@ -39,24 +39,22 @@ namespace CSharpRaft.Command
         /// <returns></returns>
         public static ICommand NewCommand(string name, byte[] data)
         {
-            // Find the registered command.
-            ICommand command = commandTypes[name];
-            if (command == null)
+            if (!commandTypes.ContainsKey(name))
             {
                 throw new Exception("raft.Command: Unregistered command type:" + name);
             }
-
-            var copy = Activator.CreateInstance(command.GetType());
-
+            
+            var command = Activator.CreateInstance(commandTypes[name].GetType());
             using (MemoryStream ms = new MemoryStream())
             {
                 ms.Write(data, 0, data.Length);
                 ms.Flush();
                 ms.Seek(0, SeekOrigin.Begin);
-                (copy as ICommand).Decode(ms);
+
+                (command as ICommand).Decode(ms);
             }
 
-            return copy as ICommand;
+            return command as ICommand;
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using CSharpRaft.Command;
+using CSharpRaft.Protocol;
 using CSharpRaft.Transport;
 using System.Collections.Generic;
 

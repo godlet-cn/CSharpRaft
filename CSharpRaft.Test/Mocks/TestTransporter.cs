@@ -1,4 +1,5 @@
-﻿using CSharpRaft.Transport;
+﻿using CSharpRaft.Protocol;
+using CSharpRaft.Transport;
 using System;
 using System.Threading.Tasks;
 

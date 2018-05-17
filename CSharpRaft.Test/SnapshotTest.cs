@@ -1,4 +1,5 @@
 ﻿using CSharpRaft.Command;
+using CSharpRaft.Protocol;
 using CSharpRaft.Test.Mocks;
 using NUnit.Framework;
 using Rhino.Mocks;

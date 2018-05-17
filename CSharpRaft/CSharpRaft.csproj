@@ -50,7 +50,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AppendEntries.cs" />
+    <Compile Include="Protocol\AppendEntriesRequest.cs" />
     <Compile Include="Command\DefaultLeaveCommand.cs" />
     <Compile Include="Command\Commands.cs" />
     <Compile Include="Command\DefaultJoinCommand.cs" />
@@ -58,10 +58,15 @@
     <Compile Include="Command\NOPCommand.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="ConfigHelper.cs" />
-    <Compile Include="Constants.cs" />
     <Compile Include="Context.cs" />
     <Compile Include="Crc32.cs" />
     <Compile Include="DebugTrace.cs" />
+    <Compile Include="Protocol\AppendEntriesResponse.cs" />
+    <Compile Include="Protocol\RequestVoteResponse.cs" />
+    <Compile Include="Protocol\SnapshotRecoveryRequest.cs" />
+    <Compile Include="Protocol\SnapshotRecoveryResponse.cs" />
+    <Compile Include="Protocol\SnapshotRequest.cs" />
+    <Compile Include="Protocol\SnapshotResponse.cs" />
     <Compile Include="Router\AbstractHttpHandler.cs" />
     <Compile Include="Router\DefaultNotFoundHandler.cs" />
     <Compile Include="Router\HttpRouter.cs" />
@@ -90,9 +95,9 @@
     <Compile Include="Serialize\ProtoSerializer.cs" />
     <Compile Include="Serialize\SerializerFactory.cs" />
     <Compile Include="Server.cs" />
-    <Compile Include="RequestVote.cs" />
+    <Compile Include="Protocol\RequestVoteRequest.cs" />
     <Compile Include="ServerState.cs" />
-    <Compile Include="Snapshot.cs" />
+    <Compile Include="Protocol\Snapshot.cs" />
     <Compile Include="StateMachine.cs" />
     <Compile Include="Transport\AppendEntriesHttpHandler.cs" />
     <Compile Include="Transport\HttpTransporter.cs" />

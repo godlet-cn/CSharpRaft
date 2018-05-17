@@ -15,7 +15,9 @@ namespace CSharpRaft.Command
         /// </summary>
         public string Name { get; set; }
 
-        // The name of the Leave command in the log
+        /// <summary>
+        /// The name of the Leave command in the log
+        /// </summary>
         public string CommandName
         {
             get
@@ -27,6 +29,7 @@ namespace CSharpRaft.Command
         public object Apply(IContext context)
         {
             context.Server.RemovePeer(this.Name);
+
             return UTF8Encoding.UTF8.GetBytes("leave");
         }
 

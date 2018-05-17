@@ -1,4 +1,5 @@
-﻿using CSharpRaft.Router;
+﻿using CSharpRaft.Protocol;
+using CSharpRaft.Router;
 using System;
 using System.IO;
 using System.Net.Http;

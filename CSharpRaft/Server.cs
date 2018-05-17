@@ -1,4 +1,5 @@
 ﻿using CSharpRaft.Command;
+using CSharpRaft.Protocol;
 using CSharpRaft.Transport;
 using System;
 using System.Collections.Generic;
@@ -35,6 +36,19 @@ namespace CSharpRaft
 
         private readonly object mutex = new object();
 
+        //--------------------------------------
+        // Constants
+        //--------------------------------------
+
+        public const int MaxLogEntriesPerRequest = 2000;
+
+        public const int NumberOfLogEntriesAfterSnapshot = 200;
+
+        //the interval that the leader will send(unit: millisecond)
+        public const int DefaultHeartbeatInterval = 50;
+
+        public const int DefaultElectionTimeout = 150;
+
         #region Constructor
 
         /// <summary>
@@ -68,9 +82,9 @@ namespace CSharpRaft
             this.peers = new Dictionary<string, Peer>();
             this.log = new Log();
 
-            this.electionTimeout = Constants.DefaultElectionTimeout;
-            this.heartbeatInterval = Constants.DefaultHeartbeatInterval;
-            this.maxLogEntriesPerRequest = Constants.MaxLogEntriesPerRequest;
+            this.electionTimeout = DefaultElectionTimeout;
+            this.heartbeatInterval = DefaultHeartbeatInterval;
+            this.maxLogEntriesPerRequest = MaxLogEntriesPerRequest;
 
             this.log.ApplyFunc = (LogEntry entry, ICommand cmd) =>
             {
@@ -844,7 +858,7 @@ namespace CSharpRaft
                         }
                         else
                         {
-                            throw Constants.NotLeaderError;
+                            throw new Exception("raft.Server: Not current leader");
                         }
                     }
                     break;
@@ -852,7 +866,7 @@ namespace CSharpRaft
                     return this.processCommand(command);
                 case ServerState.Candidate:
                 case ServerState.Snapshotting:
-                    throw Constants.NotLeaderError;
+                    throw new Exception("raft.Server: Not current leader");
             }
             return null;
         }
@@ -1270,9 +1284,9 @@ namespace CSharpRaft
 
             // We keep some log entries after the snapshot.
             // We do not want to send the whole snapshot to the slightly slow machines
-            if (lastIndex - this.log.startIndex > Constants.NumberOfLogEntriesAfterSnapshot)
+            if (lastIndex - this.log.startIndex > NumberOfLogEntriesAfterSnapshot)
             {
-                int compactIndex = lastIndex - Constants.NumberOfLogEntriesAfterSnapshot;
+                int compactIndex = lastIndex - NumberOfLogEntriesAfterSnapshot;
 
                 int compactTerm = this.log.getEntry(compactIndex).Term;
                 this.log.compact(compactIndex, compactTerm);

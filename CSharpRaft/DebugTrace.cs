@@ -18,7 +18,7 @@ namespace CSharpRaft
 
         static DebugTrace()
         {
-            Level = LogLevel.TRACE;
+            Level = LogLevel.NONE;
 
             LogWriter = Console.Out;
         }

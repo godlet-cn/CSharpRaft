@@ -1,9 +1,7 @@
 ﻿using CSharpRaft.Command;
-using Newtonsoft.Json;
 using ProtoBuf;
 using System;
 using System.IO;
-using System.Text;
 
 namespace CSharpRaft
 {
